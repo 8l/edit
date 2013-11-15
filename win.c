@@ -55,16 +55,21 @@ win_init(struct gui *gui)
 W *
 win_new(Buf *b)
 {
-	if (nwins!=0)
-		return 0;
+	assert(b != 0);
 
-	memset(&wins[nwins], 0, sizeof(W));
-	wins[nwins].b = b;
-	wins[nwins].gw = g->newwin(0, 0, fwidth, fheight);
-	wins[nwins].vfrac = FScale;
+	W *pw;
 
-	nwins = 1;
-	return &wins[0];
+	for (pw=wins; pw->b != 0; pw++)
+		if (pw-wins>=MaxWins)
+			return 0;
+
+	memset(pw, 0, sizeof(W));
+	pw->b = b;
+	pw->gw = g->newwin(0, 0, fwidth, fheight);
+	pw->vfrac = FScale/3;
+
+	nwins++;
+	return pw;
 }
 
 /* win_delete - Delete a window created by win_new.
@@ -74,7 +79,11 @@ win_delete(W *w)
 {
 	assert(w >= wins);
 	assert(w < wins+nwins);
-	nwins = 0;
+
+	g->delwin(w->gw);
+	w->b = 0;
+
+	nwins--;
 }
 
 /* win_resize_frame - Called when the whole frame
@@ -84,7 +93,8 @@ void
 win_resize_frame(int w, int h)
 {
 	GColor white = { 255, 255, 255 };
-	int x, ww;
+	GColor black = { 0 };
+	int x, ww, n;
 	W *pw;
 
 	if (w!=0 && h!=0) {
@@ -92,14 +102,20 @@ win_resize_frame(int w, int h)
 		fheight = h;
 	}
 
-	for (x=0, pw=wins; pw-wins<nwins; pw++) {
+	for (x=n=0, pw=wins; pw-wins<MaxWins; pw++) {
+		if (pw->b == 0)
+			continue;
+
 		pw->height = fheight;
-		ww = (fwidth * pw->vfrac) / FScale;
-		g->movewin(pw->gw, x, 0, ww, fheight);
+		ww = ((fwidth-nwins+1) * pw->vfrac) / FScale;
+		g->movewin(pw->gw, x, 0, ww+1, fheight);
 		g->drawrect(pw->gw, 0, 0, ww, fheight, white);
+		if (++n < nwins)
+			/* add a border to the right */
+			g->drawrect(pw->gw, ww, 0, 1, fheight, black);
 		draw(pw);
 		g->putwin(pw->gw);
-		x += ww;
+		x += ww+1;
 	}
 }
 
@@ -403,7 +419,7 @@ int main()
 	GEvent e;
 	Buf *b;
 	W *w;
-	enum culoc cloc;
+	enum CursorLoc cloc;
 	unsigned char s[] =
 	"je suis\n"
 	"\tQcar\n"
@@ -414,7 +430,9 @@ int main()
 
 	b = buf_new("*");
 	win_init(&gui_x11);
+	win_new(b);
 	w = win_new(b);
+	win_new(b);
 
 	for (int i=0; i<5; i++)
 		buf_ins_utf8(b, 0, s, sizeof s - 1);
