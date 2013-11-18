@@ -92,8 +92,8 @@ win_delete(W *w)
 void
 win_resize_frame(int w, int h)
 {
-	GColor white = { 255, 255, 255 };
-	GColor black = { 0 };
+	GColor white = { 255, 255, 255 },
+	       black = { 0 };
 	int x, ww, n;
 	W *pw;
 
@@ -107,12 +107,12 @@ win_resize_frame(int w, int h)
 			continue;
 
 		pw->height = fheight;
-		ww = ((fwidth-nwins+1) * pw->vfrac) / FScale;
-		g->movewin(pw->gw, x, 0, ww+1, fheight);
+		ww = (fwidth * pw->vfrac) / FScale;
+		g->movewin(pw->gw, x, 0, ww, fheight);
 		g->drawrect(pw->gw, 0, 0, ww, fheight, white);
 		if (++n < nwins)
-			/* add a border to the right */
-			g->drawrect(pw->gw, ww, 0, 1, fheight, black);
+			/* if not rightmost, add a border to the right */
+			g->drawrect(pw->gw, ww-1, 0, 1, fheight, black);
 		draw(pw);
 		g->putwin(pw->gw);
 		x += ww+1;
@@ -136,12 +136,9 @@ win_scroll(W *w, int n)
 
 	struct lineinfo li;
 	unsigned start, bol;
-	int dir;
 
 	if (n == 0)
 		return;
-
-	dir = n; // XXX this is for cursor handling, do we do this here?
 
 	if (n < 0) {
 		start = w->start;
