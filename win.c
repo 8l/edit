@@ -250,7 +250,7 @@ pushrune(GWin *gw, Rune r, int x, int y, int w, int cu)
 {
 	static int fragx = -1, fragy, cx = -1, cy, cw;
 	static Rune frag[MaxWidth], *p = frag;
-	GColor color = { .blue = 255 },
+	GColor color = { 0 },
 	       xor   = { .x = 1 };
 
 	assert(r == '\n' || fragx == -1 || y == fragy);
