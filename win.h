@@ -16,7 +16,7 @@ enum {
 struct w {
 	unsigned start, stop;  /* offset of the first/last character displayed */
 	unsigned cu;           /* cursor offset */
-	int vfrac, height;     /* vertical fraction and height of the window */
+	int hrig, height;      /* horizontal rigidity and height of the window */
 	Buf *b;                /* underlying buffer object */
 	GWin *gw;              /* graphical window associated */
 };

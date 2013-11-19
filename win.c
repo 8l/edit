@@ -66,7 +66,7 @@ win_new(Buf *b)
 	memset(pw, 0, sizeof(W));
 	pw->b = b;
 	pw->gw = g->newwin(0, 0, fwidth, fheight);
-	pw->vfrac = FScale/3;
+	pw->hrig = 10;
 
 	nwins++;
 	return pw;
@@ -94,7 +94,7 @@ win_resize_frame(int w, int h)
 {
 	GColor white = { 255, 255, 255 },
 	       black = { 0 };
-	int x, ww, n;
+	int x, ww, n, rig;
 	W *pw;
 
 	if (w!=0 && h!=0) {
@@ -102,12 +102,15 @@ win_resize_frame(int w, int h)
 		fheight = h;
 	}
 
+	for (rig=0, pw=wins; pw-wins<MaxWins; pw++)
+		rig += pw->hrig; /* compute total rigidity */
+
 	for (x=n=0, pw=wins; pw-wins<MaxWins; pw++) {
 		if (pw->b == 0)
 			continue;
 
 		pw->height = fheight;
-		ww = (fwidth * pw->vfrac) / FScale;
+		ww = (fwidth * pw->hrig) / rig;
 		g->movewin(pw->gw, x, 0, ww, fheight);
 		g->drawrect(pw->gw, 0, 0, ww, fheight, white);
 		if (++n < nwins)
@@ -427,7 +430,7 @@ int main()
 
 	b = buf_new("*");
 	win_init(&gui_x11);
-	win_new(b);
+	// win_new(b);
 	w = win_new(b);
 	win_new(b);
 
@@ -444,6 +447,8 @@ int main()
 			case 'h': --w->cu; cloc = CTop; break;
 			case 'e'-'a' + 1: win_scroll(w,  1); break;
 			case 'y'-'a' + 1: win_scroll(w, -1); break;
+			case '+': if (w->hrig < 9000) w->hrig += w->hrig/9; break;
+			case '-': if (w->hrig > 9) w->hrig -= w->hrig/9; break;
 			default: continue;
 			}
 			win_redraw_frame();
