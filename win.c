@@ -55,21 +55,17 @@ win_init(struct gui *gui)
 W *
 win_new(Buf *b)
 {
-	assert(b != 0);
+	assert(b);
 
-	W *pw;
+	if (nwins >= MaxWins)
+		return 0;
 
-	for (pw=wins; pw->b != 0; pw++)
-		if (pw-wins>=MaxWins)
-			return 0;
+	memset(&wins[nwins], 0, sizeof(W));
+	wins[nwins].b = b;
+	wins[nwins].gw = g->newwin(0, 0, fwidth, fheight);
+	wins[nwins].hrig = 500;
 
-	memset(pw, 0, sizeof(W));
-	pw->b = b;
-	pw->gw = g->newwin(0, 0, fwidth, fheight);
-	pw->hrig = 10;
-
-	nwins++;
-	return pw;
+	return &wins[nwins++];
 }
 
 /* win_delete - Delete a window created by win_new.
@@ -80,10 +76,10 @@ win_delete(W *w)
 	assert(w >= wins);
 	assert(w < wins+nwins);
 
-	g->delwin(w->gw);
-	w->b = 0;
-
 	nwins--;
+
+	g->delwin(w->gw);
+	memmove(w, w+1, (nwins - (wins-w)) * sizeof(W));
 }
 
 /* win_resize_frame - Called when the whole frame
@@ -102,13 +98,10 @@ win_resize_frame(int w, int h)
 		fheight = h;
 	}
 
-	for (rig=0, pw=wins; pw-wins<MaxWins; pw++)
+	for (rig=0, pw=wins; pw-wins<nwins; pw++)
 		rig += pw->hrig; /* compute total rigidity */
 
-	for (x=n=0, pw=wins; pw-wins<MaxWins; pw++) {
-		if (pw->b == 0)
-			continue;
-
+	for (x=n=0, pw=wins; pw-wins<nwins; pw++) {
 		pw->height = fheight;
 		ww = (fwidth * pw->hrig) / rig;
 		g->movewin(pw->gw, x, 0, ww, fheight);
@@ -447,8 +440,8 @@ int main()
 			case 'h': --w->cu; cloc = CTop; break;
 			case 'e'-'a' + 1: win_scroll(w,  1); break;
 			case 'y'-'a' + 1: win_scroll(w, -1); break;
-			case '+': if (w->hrig < 9000) w->hrig += w->hrig/9; break;
-			case '-': if (w->hrig > 9) w->hrig -= w->hrig/9; break;
+			case '+': if (w->hrig < 1000) w->hrig += 1 + w->hrig/10; break;
+			case '-': if (w->hrig > 10) w->hrig -= 1 + w->hrig/10; break;
 			default: continue;
 			}
 			win_redraw_frame();
