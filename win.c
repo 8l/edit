@@ -1,6 +1,4 @@
 /*% clang -DWIN_TEST -Wall -g $(pkg-config --libs x11 xft) obj/{unicode,buf,x11}.o % -o #
- *
- * Windowing module
  */
 
 #include <assert.h>
@@ -82,15 +80,30 @@ win_delete(W *w)
 	memmove(w, w+1, (nwins - (wins-w)) * sizeof(W));
 }
 
+/* win_redraw - Fully redraw a window and display it.
+ */
+void
+win_redraw(W *w)
+{
+	GColor white = { 255, 255, 255 }, black = { 0 };
+	int width;
+
+	width = w->gw->w;
+	g->drawrect(w->gw, 0, 0, width, fheight, white);
+	if (w-wins < nwins)
+		/* if not leftmost window, draw the border */
+		g->drawrect(w->gw, width-1, 0, 1, fheight, black);
+	draw(w);
+	g->putwin(w->gw);
+}
+
 /* win_resize_frame - Called when the whole frame
  * is resized.
  */
 void
 win_resize_frame(int w, int h)
 {
-	GColor white = { 255, 255, 255 },
-	       black = { 0 };
-	int x, ww, n, rig;
+	int x, ww, rig;
 	W *pw;
 
 	if (w!=0 && h!=0) {
@@ -101,16 +114,11 @@ win_resize_frame(int w, int h)
 	for (rig=0, pw=wins; pw-wins<nwins; pw++)
 		rig += pw->hrig; /* compute total rigidity */
 
-	for (x=n=0, pw=wins; pw-wins<nwins; pw++) {
+	for (x=0, pw=wins; pw-wins<nwins; pw++) {
 		pw->height = fheight;
 		ww = (fwidth * pw->hrig) / rig;
 		g->movewin(pw->gw, x, 0, ww, fheight);
-		g->drawrect(pw->gw, 0, 0, ww, fheight, white);
-		if (++n < nwins)
-			/* if not rightmost, add a border to the right */
-			g->drawrect(pw->gw, ww-1, 0, 1, fheight, black);
-		draw(pw);
-		g->putwin(pw->gw);
+		win_redraw(pw);
 		x += ww+1;
 	}
 }
@@ -440,7 +448,7 @@ int main()
 			case 'h': --w->cu; cloc = CTop; break;
 			case 'e'-'a' + 1: win_scroll(w,  1); break;
 			case 'y'-'a' + 1: win_scroll(w, -1); break;
-			case '+': if (w->hrig < 1000) w->hrig += 1 + w->hrig/10; break;
+			case '+': if (w->hrig < 8000) w->hrig += 1 + w->hrig/10; break;
 			case '-': if (w->hrig > 10) w->hrig -= 1 + w->hrig/10; break;
 			default: continue;
 			}
