@@ -4,14 +4,13 @@
 #include <assert.h>
 #include <string.h>
 
-#include "tools.h"
 #include "unicode.h"
 #include "buf.h"
 #include "gui.h"
 #include "win.h"
 
 enum { RingSize = 2 };          /* bigger is (a bit) faster */
-static_assert(RingSize >= 2, "RingSize must be at least 2");
+_Static_assert(RingSize >= 2, "RingSize must be at least 2");
 
 struct lineinfo {
 	int beg, len;
@@ -373,9 +372,7 @@ lineinfofn(void *data, unsigned off, Rune r, int x, int rw, int sl)
 {
 	struct lstatus *ls = data;
 
-	unused(r);
-	unused(x);
-	unused(rw);
+	(void) r; (void) x; (void) rw;
 
 	if (off > ls->lim)
 		return 0;
