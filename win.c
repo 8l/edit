@@ -9,12 +9,12 @@
 #include "gui.h"
 #include "win.h"
 
-enum { RingSize = 2 };          /* bigger is (a bit) faster */
+enum { RingSize = 2 }; /* bigger is (a bit) faster */
 _Static_assert(RingSize >= 2, "RingSize must be at least 2");
 
 struct lineinfo {
 	int beg, len;
-	unsigned sl[RingSize];  /* screen line offsets */
+	unsigned sl[RingSize]; /* screen line offsets */
 };
 
 static void draw(W *w);
@@ -84,11 +84,11 @@ win_delete(W *w)
 void
 win_redraw(W *w)
 {
-	GColor white = { 255, 255, 255 }, black = { 0 };
+	GColor paley = { 255, 255, 234 }, black = { 0 };
 	int width;
 
 	width = w->gw->w;
-	g->drawrect(w->gw, 0, 0, width, fheight, white);
+	g->drawrect(w->gw, 0, 0, width, fheight, paley);
 	if (w-wins < nwins)
 		/* if not leftmost window, draw the border */
 		g->drawrect(w->gw, width-1, 0, 1, fheight, black);
@@ -111,7 +111,7 @@ win_resize_frame(int w, int h)
 	}
 
 	for (rig=0, pw=wins; pw-wins<nwins; pw++)
-		rig += pw->hrig; /* compute total rigidity */
+		rig += pw->hrig;
 
 	for (x=0, pw=wins; pw-wins<nwins; pw++) {
 		pw->height = fheight;
@@ -250,8 +250,7 @@ pushrune(GWin *gw, Rune r, int x, int y, int w, int cu)
 {
 	static int fragx = -1, fragy, cx = -1, cy, cw;
 	static Rune frag[MaxWidth], *p = frag;
-	GColor color = { 0 },
-	       xor   = { .x = 1 };
+	GColor color = { 0 }, xor   = { .x = 1 };
 
 	assert(r == '\n' || fragx == -1 || y == fragy);
 
@@ -430,7 +429,7 @@ int main()
 	win_init(&gui_x11);
 	// win_new(b);
 	w = win_new(b);
-	win_new(b);
+	win_new(b); win_new(b); // win_new(b); win_new(b);
 
 	for (int i=0; i<5; i++)
 		buf_ins_utf8(b, 0, s, sizeof s - 1);
@@ -445,7 +444,7 @@ int main()
 			case 'h': --w->cu; cloc = CTop; break;
 			case 'e'-'a' + 1: win_scroll(w,  1); break;
 			case 'y'-'a' + 1: win_scroll(w, -1); break;
-			case '+': if (w->hrig < 8000) w->hrig += 1 + w->hrig/10; break;
+			case '+': if (w->hrig < 25000) w->hrig += 1 + w->hrig/10; break;
 			case '-': if (w->hrig > 10) w->hrig -= 1 + w->hrig/10; break;
 			default: continue;
 			}
