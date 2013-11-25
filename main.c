@@ -26,7 +26,7 @@ main(void)
 	g = &gui_x11;
 	win_init(g);
 
-	curwin = win_new(buf_new("*"));
+	curwin = win_new(buf_new());
 
 	while (!exiting) {
 		g->nextevent(&e);

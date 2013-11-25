@@ -17,14 +17,13 @@ static void setcol(Page *, Page *);
 static void setnl(Page *);
 
 Buf *
-buf_new(char path[])
+buf_new()
 {
 	Buf *b;
 
 	b = malloc(sizeof *b);
 	if (!b)
 		return 0;
-	snprintf(b->path, PathLen, "%s", path);
 	b->p = newpage();
 	b->last = 0;
 	return b;

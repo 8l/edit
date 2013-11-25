@@ -22,14 +22,12 @@ struct page {
 };
 
 struct buf {
-	char path[512];
 	Page *p;
-
 	Page *last;
 	unsigned lastbeg;
 };
 
-Buf *buf_new(char []);
+Buf *buf_new(void);
 void buf_del(Buf *, unsigned);
 void buf_ins(Buf *, unsigned, Rune);
 int buf_ins_utf8(Buf *, unsigned, unsigned char *, int);
