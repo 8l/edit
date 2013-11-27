@@ -38,6 +38,8 @@ static void pushlog(Log *, int);
 void
 log_insert(Log *l, unsigned p0, unsigned p1)
 {
+	assert(p0 <= p1);
+
 	if (l->type != Insert || l->p0 + l->np != p0) {
 		pushlog(l, Insert);
 		l->p0 = p0;
@@ -49,6 +51,8 @@ log_insert(Log *l, unsigned p0, unsigned p1)
 void
 log_delete(Log *l, Buf *b, unsigned p0, unsigned p1)
 {
+	assert(p0 <= p1);
+
 	if (l->type != Delete || l->p0 != p1)
 		pushlog(l, Delete);
 
