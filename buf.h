@@ -9,7 +9,6 @@ typedef struct buf  Buf;
 
 enum {
 	PageLen = 11,
-	PathLen = 128,
 };
 
 struct page {
