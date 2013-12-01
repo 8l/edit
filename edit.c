@@ -107,7 +107,7 @@ log_undo(Log *l, Buf *b, Log *redo)
 			}
 			break;
 		default:
-			assert(!"unhandled operation type");
+			abort();
 		}
 
 		n = l->next;

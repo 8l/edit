@@ -166,10 +166,9 @@ insert(Rune r)
 	if (r == GKBackspace) {
 		if (curwin->cu > 0)
 			buf_del(b, --curwin->cu);
-		return Insert;
-	}
+	} else
+		buf_ins(b, curwin->cu++, r);
 
-	buf_ins(b, curwin->cu++, r);
 	return Insert;
 }
 
