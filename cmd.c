@@ -42,6 +42,7 @@ static int mode = Command;
 static int insert(Rune r);
 static int motion(struct cmd *c, unsigned *dst, int *linewise);
 static unsigned mvnext(Buf *b, unsigned cu, int in(Rune), int end);
+static unsigned mvprev(Buf *b, unsigned cu, int in(Rune));
 static void perform(char buf, struct cmd *c, struct cmd *m);
 static int risalpha(Rune r);
 static int risascii(Rune r);
@@ -228,6 +229,16 @@ motion(struct cmd *c, unsigned *pcu, int *linewise)
 			cu = mvnext(b, cu, risbigword, 1);
 		break;
 
+	case 'b':
+		while (c->count--)
+			cu = mvprev(b, cu, risword);
+		break;
+
+	case 'B':
+		while (c->count--)
+			cu = mvprev(b, cu, risbigword);
+		break;
+
 	/* other line motions */
 	case '0':
 		cu = buf_setlc(b, line, 0);
@@ -276,6 +287,17 @@ mvnext(Buf *b, unsigned cu, int in(Rune), int end)
 		nx = in(r);
 		i += (nx != st);
 	} while (i<2 && (nx==end || i==0));
+
+	return cu;
+}
+
+static unsigned // later we can just use regexps!
+mvprev(Buf *b, unsigned cu, int in(Rune))
+{
+	for (; cu && !in(buf_get(b, cu-1)); cu--)
+		;
+	for (; cu && in(buf_get(b, cu-1)); cu--)
+		;
 
 	return cu;
 }
