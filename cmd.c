@@ -42,8 +42,8 @@ static int mode = Command;
 
 static int insert(Rune r);
 static int motion(struct cmd *c, unsigned *dst, int *linewise);
-static unsigned mvnext(Buf *b, unsigned cu, int in(Rune), int end);
-static unsigned mvprev(Buf *b, unsigned cu, int in(Rune));
+static unsigned mvnext(Buf *b, unsigned cu, int in(Rune), int end, int cnt);
+static unsigned mvprev(Buf *b, unsigned cu, int in(Rune), int cnt);
 static void perform(char buf, struct cmd *c, struct cmd *m);
 static int risalpha(Rune r);
 static int risascii(Rune r);
@@ -214,27 +214,27 @@ motion(struct cmd *c, unsigned *pcu, int *linewise)
 
 	/* word motions */
 	case 'w':
-		cu = mvnext(b, cu, risword, 0);
+		cu = mvnext(b, cu, risword, 0, c->count);
 		break;
 
 	case 'e':
-		cu = mvnext(b, cu, risword, 1);
+		cu = mvnext(b, cu, risword, 1, c->count);
 		break;
 
 	case 'W':
-		cu = mvnext(b, cu, risbigword, 0);
+		cu = mvnext(b, cu, risbigword, 0, c->count);
 		break;
 
 	case 'E':
-		cu = mvnext(b, cu, risbigword, 1);
+		cu = mvnext(b, cu, risbigword, 1, c->count);
 		break;
 
 	case 'b':
-		cu = mvprev(b, cu, risword);
+		cu = mvprev(b, cu, risword, c->count);
 		break;
 
 	case 'B':
-		cu = mvprev(b, cu, risbigword);
+		cu = mvprev(b, cu, risbigword, c->count);
 		break;
 
 	/* other line motions */
@@ -266,36 +266,41 @@ motion(struct cmd *c, unsigned *pcu, int *linewise)
 }
 
 static unsigned
-mvnext(Buf *b, unsigned cu, int in(Rune), int end)
+mvnext(Buf *b, unsigned cu, int in(Rune), int end, int cnt)
 {
 	int st, nx, i;
 	Rune r;
 
+	assert(cnt > 0);
 	assert(end == 0 || end == 1);
 	//if (end && buf_get(b, cu) == '\n')
 		//return cu;
 
-	i = 0;
-	nx = in(buf_get(b, cu-- + end));
-	do {
-		st = nx;
-		r = buf_get(b, ++cu + end);
-		//if (r == '\n')
-			//break;
-		nx = in(r);
-		i += (nx != st);
-	} while (i<2 && (nx==end || i==0));
+	while (cnt--) {
+		i = 0;
+		nx = in(buf_get(b, cu-- + end));
+		do {
+			st = nx;
+			r = buf_get(b, ++cu + end);
+			//if (r == '\n')
+				//break;
+			nx = in(r);
+			i += (nx != st);
+		} while (i<2 && (nx==end || i==0));
+	}
 
 	return cu;
 }
 
-static unsigned // later we can just use regexps!
-mvprev(Buf *b, unsigned cu, int in(Rune))
+static unsigned
+mvprev(Buf *b, unsigned cu, int in(Rune), int cnt)
 {
-	for (; cu && !in(buf_get(b, cu-1)); cu--)
-		;
-	for (; cu && in(buf_get(b, cu-1)); cu--)
-		;
+	while (cnt--) {
+		for (; cu && !in(buf_get(b, cu-1)); cu--)
+			;
+		for (; cu && in(buf_get(b, cu-1)); cu--)
+			;
+	}
 
 	return cu;
 }
