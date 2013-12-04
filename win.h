@@ -3,6 +3,7 @@
 
 #include "unicode.h"
 #include "buf.h"
+#include "edit.h"
 #include "gui.h"
 
 typedef struct w W;
@@ -17,14 +18,14 @@ struct w {
 	unsigned start, stop;  /* offset of the first/last character displayed */
 	unsigned cu;           /* cursor offset */
 	int hrig, height;      /* horizontal rigidity and height of the window */
-	Buf *b;                /* underlying buffer object */
+	EBuf *eb;              /* underlying buffer object */
 	GWin *gw;              /* graphical window associated */
 };
 
 enum CursorLoc { CTop, CBot };
 
 void win_init(struct gui *g);
-W *win_new(Buf *b);
+W *win_new(EBuf *eb);
 void win_delete(W *);
 void win_redraw(W *);
 void win_resize_frame(int w, int h);

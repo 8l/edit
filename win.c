@@ -50,15 +50,15 @@ win_init(struct gui *gui)
  * windows), 0 is returned.
  */
 W *
-win_new(Buf *b)
+win_new(EBuf *eb)
 {
-	assert(b);
+	assert(eb);
 
 	if (nwins >= MaxWins)
 		return 0;
 
 	memset(&wins[nwins], 0, sizeof(W));
-	wins[nwins].b = b;
+	wins[nwins].eb = eb;
 	wins[nwins].gw = g->newwin(0, 0, fwidth, fheight);
 	wins[nwins].hrig = 500;
 
@@ -151,7 +151,7 @@ win_scroll(W *w, int n)
 			if (start == 0)
 				/* already at the top */
 				break;
-			bol = buf_bol(w->b, start-1);
+			bol = buf_bol(&w->eb->b, start-1);
 
 			li.beg = li.len = 0;
 			lineinfo(w, bol, start-1, &li);
@@ -175,7 +175,7 @@ win_scroll(W *w, int n)
 			for (; n>0 && top<li.len; top++, n--) {
 				start = li.sl[(li.beg + top) % RingSize];
 				assert(start > w->start
-				    || buf_get(w->b, w->start) == '\n'); // change this to test size
+				    || buf_get(&w->eb->b, w->start) == '\n'); // change this to test size
 			}
 		} while (n>0);
 		w->start = start;
@@ -193,7 +193,7 @@ win_show_cursor(W *w, enum CursorLoc where)
 	struct lineinfo li;
 	unsigned bol;
 
-	bol = buf_bol(w->b, w->cu);
+	bol = buf_bol(&w->eb->b, w->cu);
 	li.beg = li.len = 0;
 	lineinfo(w, bol, w->cu, &li);
 	assert(li.len >= 2);
@@ -217,7 +217,7 @@ line(W *w, unsigned off, LineFn f, void *data)
 	x = 0;
 
 	for (; r != '\n'; x+=rw, off++) {
-		r = buf_get(w->b, off);
+		r = buf_get(&w->eb->b, off);
 
 		if (r == '\t') {
 			int tw;
