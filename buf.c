@@ -16,17 +16,12 @@ static Page *page(Buf *, unsigned *);
 static void setcol(Page *, Page *);
 static void setnl(Page *);
 
-Buf *
-buf_new()
+void
+buf_init(Buf *b)
 {
-	Buf *b;
-
-	b = malloc(sizeof *b);
-	if (!b)
-		return 0;
+	assert(b);
 	b->p = newpage();
 	b->last = 0;
-	return b;
 }
 
 /* buf_del - Delete rune after position [pos].
@@ -43,25 +38,6 @@ void
 buf_ins(Buf *b, unsigned pos, Rune r)
 {
 	ins(b, pos, r);
-}
-
-/* buf_ins_utf8 - Insert raw utf8 encoded text in buffer [b]
- * at position [pos]. The number of bytes processed is returned.
- */
-int
-buf_ins_utf8(Buf *b, unsigned pos, unsigned char *data, int len)
-{
-	Rune r;
-	int rd, total;
-
-	total = 0;
-	while ((rd = utf8_decode_rune(&r, data, len))) {
-		ins(b, pos++, r);
-		data += rd;
-		len -= rd;
-		total += rd;
-	}
-	return total;
 }
 
 Rune

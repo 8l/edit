@@ -26,10 +26,9 @@ struct buf {
 	unsigned lastbeg;
 };
 
-Buf *buf_new(void);
+void buf_init(Buf *);
 void buf_del(Buf *, unsigned);
 void buf_ins(Buf *, unsigned, Rune);
-int buf_ins_utf8(Buf *, unsigned, unsigned char *, int);
 Rune buf_get(Buf *, unsigned);
 void buf_getlc(Buf *, unsigned, int *, int *);
 unsigned buf_bol(Buf *, unsigned);
