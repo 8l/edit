@@ -6,12 +6,11 @@
 
 #include "unicode.h"
 #include "buf.h"
+#include "edit.h"
 
 enum {
 	MaxBuf = 4,	/* maximal string stored in rbuf */
 };
-
-typedef struct log Log;
 
 struct log {
 	enum {
@@ -70,7 +69,8 @@ log_delete(Log *l, Buf *b, unsigned p0, unsigned p1)
 void
 log_commit(Log *l)
 {
-	pushlog(l, Commit);
+	//if (l->type != Commit)
+		pushlog(l, Commit);
 }
 
 void
@@ -131,9 +131,90 @@ log_new()
 	l->type = Commit;
 	l->p0 = l->np = 0;
 	l->next = 0;
-
 	return l;
 }
+
+void
+log_clr(Log *l)
+{
+	Log *n;
+
+	assert(l->type == Commit);
+
+	n = l->next;
+	l->next = 0;
+	for (l = n; l; l = n) {
+		n = l->next;
+		free(l);
+	}
+}
+
+EBuf *
+eb_new()
+{
+	EBuf *eb;
+
+	eb = malloc(sizeof *eb);
+	buf_init(&eb->b);
+	eb->undo = log_new();
+	eb->redo = log_new();
+	return eb;
+}
+
+void
+eb_del(EBuf *eb, unsigned p0, unsigned p1)
+{
+	if (eb->redo)
+		log_clr(eb->redo);
+	log_delete(eb->undo, &eb->b, p0, p1);
+	for (; p0 < p1; p1--)
+		buf_del(&eb->b, p1-1);
+}
+
+void
+eb_ins(EBuf *eb, unsigned p0, Rune r)
+{
+	if (eb->redo)
+		log_clr(eb->redo);
+	log_insert(eb->undo, p0, p0+1);
+	buf_ins(&eb->b, p0, r);
+}
+
+int
+eb_ins_utf8(EBuf *eb, unsigned p0, unsigned char *data, int len)
+{
+	Rune r;
+	int rd, total;
+
+	total = 0;
+	while ((rd = utf8_decode_rune(&r, data, len))) {
+		eb_ins(eb, p0++, r);
+		data += rd;
+		len -= rd;
+		total += rd;
+	}
+	return total;
+}
+
+void
+eb_clean(EBuf *eb)
+{
+	log_commit(eb->undo);
+}
+
+void
+eb_undo(EBuf *eb, int undo)
+{
+	Log *u, *r;
+
+	if (undo)
+		u = eb->undo, r = eb->redo;
+	else
+		u = eb->redo, r = eb->undo;
+
+	log_undo(u, &eb->b, r);
+}
+
 
 /* static functions */
 
@@ -141,7 +222,7 @@ log_new()
  * the topmost log entry has a rune array of
  * MaxBuf runes.
  */
-void
+static void
 pushlog(Log *log, int type)
 {
 	size_t sz;
@@ -159,6 +240,7 @@ pushlog(Log *log, int type)
 	log->p0 = log->np = 0;
 	log->next = l;
 }
+
 
 #ifdef TEST
 #include <stdio.h>
@@ -197,32 +279,14 @@ dumplog(Log *l)
 
 }
 
-void
-do_insert(Buf *b, Log *l, unsigned p0, unsigned char *buf, int len)
-{
-	int n;
-	n = buf_ins_utf8(b, p0, buf, len);
-	log_insert(l, p0, p0+n);
-}
-
-void
-do_delete(Buf *b, Log *l, unsigned p0, unsigned p1)
-{
-	log_delete(l, b, p0, p1);
-	for (; p0 < p1; p1--)
-		buf_del(b, p1-1);
-}
-
 int
 main() {
 	char line[1024], *p, *q;
 	long int p0, p1, i;
 	size_t len;
-	Log *l;
-	Buf *b;
+	EBuf *eb;
 
-	l = log_new();
-	b = buf_new();
+	eb = eb_new();
 
 	while (fgets((char *)line, 1024, stdin)) {
 		switch (line[0]) {
@@ -235,7 +299,7 @@ main() {
 				p[len] = 0;
 				len--;
 			}
-			do_insert(b, l, p0, (unsigned char *)p+1, len);
+			eb_ins_utf8(eb, p0, (unsigned char *)p+1, len);
 			break;
 		case '-':
 			p0 = strtol(line+1, &p, 0);
@@ -244,26 +308,24 @@ main() {
 			p1 = strtol(p+1, &q, 0);
 			if (p+1 == q || (*q != '\n' && *q != 0))
 				goto Syntax;
-			do_delete(b, l, p0, p1);
+			eb_del(eb, p0, p1);
 			break;
 		case '!':
-			if (l->type != Commit) {
-				fputs("warn: adding commit to log\n", stderr);
-				log_commit(l);
-			}
-			log_undo(l, b, 0);
+			if (eb->undo->type != Commit)
+				eb_clean(eb);
+			eb_undo(eb, 1);
 			break;
 		case '?':
-			dumplog(l);
+			dumplog(eb->undo);
 			break;
 		case 'p':
 			i = 0;
 			do
-				putrune(buf_get(b, i++));
-			while (buf_get(b, i-1) != '\n');
+				putrune(buf_get(&eb->b, i++));
+			while (buf_get(&eb->b, i-1) != '\n');
 			break;
 		case 'c':
-			log_commit(l);
+			eb_clean(eb);
 			break;
 		case '#':
 			break;
