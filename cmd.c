@@ -214,33 +214,27 @@ motion(struct cmd *c, unsigned *pcu, int *linewise)
 
 	/* word motions */
 	case 'w':
-		while (c->count--)
-			cu = mvnext(b, cu, risword, 0);
+		cu = mvnext(b, cu, risword, 0);
 		break;
 
 	case 'e':
-		while (c->count--)
-			cu = mvnext(b, cu, risword, 1);
+		cu = mvnext(b, cu, risword, 1);
 		break;
 
 	case 'W':
-		while (c->count--)
-			cu = mvnext(b, cu, risbigword, 0);
+		cu = mvnext(b, cu, risbigword, 0);
 		break;
 
 	case 'E':
-		while (c->count--)
-			cu = mvnext(b, cu, risbigword, 1);
+		cu = mvnext(b, cu, risbigword, 1);
 		break;
 
 	case 'b':
-		while (c->count--)
-			cu = mvprev(b, cu, risword);
+		cu = mvprev(b, cu, risword);
 		break;
 
 	case 'B':
-		while (c->count--)
-			cu = mvprev(b, cu, risbigword);
+		cu = mvprev(b, cu, risbigword);
 		break;
 
 	/* other line motions */
