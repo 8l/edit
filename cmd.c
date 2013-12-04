@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #include "unicode.h"
+#include "edit.h"
 #include "gui.h"
 #include "win.h"
 #include "cmd.h"
@@ -154,21 +155,24 @@ reset:
 static int
 insert(Rune r)
 {
-	Buf *b;
+	EBuf *eb;
 
-	b = curwin->b;
+	eb = curwin->eb;
 
 	if (r == GKEsc) {
 		if (curwin->cu > 0)
 			curwin->cu--;
+		eb_clean(eb);
 		return Command;
 	}
 
 	if (r == GKBackspace) {
-		if (curwin->cu > 0)
-			buf_del(b, --curwin->cu);
+		if (curwin->cu > 0) {
+			eb_del(eb, curwin->cu-1, curwin->cu);
+			curwin->cu--;
+		}
 	} else
-		buf_ins(b, curwin->cu++, r);
+		eb_ins(eb, curwin->cu++, r);
 
 	return Insert;
 }
@@ -181,7 +185,7 @@ motion(struct cmd *c, unsigned *pcu, int *linewise)
 	unsigned cu;
 	int line, col;
 
-	b = curwin->b;
+	b = &curwin->eb->b;
 	cu = *pcu;
 	buf_getlc(b, cu, &line, &col);
 
@@ -321,12 +325,19 @@ perform(char buf, struct cmd *c, struct cmd *m)
 	if (motion(c, &curwin->cu, 0))
 		return;
 
+	static int u;
+
 	switch (c->c) {
 	case 'q'-'a' + 1:
 		exiting = 1;
 		break;
 	case 'i':
 		mode = Insert;
+		break;
+	case 'u':
+		u = !u;
+	case '.':
+		eb_undo(curwin->eb, u);
 		break;
 	}
 }
