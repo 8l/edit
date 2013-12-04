@@ -84,14 +84,13 @@ win_delete(W *w)
 void
 win_redraw(W *w)
 {
-	GColor paley = { 255, 255, 234 }, black = { 0 };
 	int width;
 
 	width = w->gw->w;
-	g->drawrect(w->gw, 0, 0, width, fheight, paley);
+	g->drawrect(w->gw, 0, 0, width, fheight, GPaleYellow);
 	if (w-wins < nwins)
 		/* if not leftmost window, draw the border */
-		g->drawrect(w->gw, width-1, 0, 1, fheight, black);
+		g->drawrect(w->gw, width-1, 0, 1, fheight, GBlack);
 	draw(w);
 	g->putwin(w->gw);
 }
@@ -250,7 +249,6 @@ pushrune(GWin *gw, Rune r, int x, int y, int w, int cu)
 {
 	static int fragx = -1, fragy, cx = -1, cy, cw;
 	static Rune frag[MaxWidth], *p = frag;
-	GColor color = { 0 }, xor   = { .x = 1 };
 
 	assert(r == '\n' || fragx == -1 || y == fragy);
 
@@ -278,9 +276,9 @@ pushrune(GWin *gw, Rune r, int x, int y, int w, int cu)
 		printf("'\n");
 #endif
 		assert(fragx != -1);
-		g->drawtext(gw, frag, p-frag, fragx, fragy, color);
+		g->drawtext(gw, frag, p-frag, fragx, fragy, GBlack);
 		if (cx != -1)
-			g->drawrect(gw, cx, cy, cw, font.height, xor);
+			g->drawrect(gw, cx, cy, cw, font.height, GXBlack);
 
 		fragx = cx = -1;
 		p = frag;

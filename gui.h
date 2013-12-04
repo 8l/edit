@@ -20,6 +20,10 @@ struct gcolor {
 	unsigned char x;
 };
 
+#define GBlack      (GColor){ 0, 0, 0, 0 }
+#define GPaleYellow (GColor){ 255, 255, 234, 0 }
+#define GXBlack     (GColor){ 0, 0, 0, 1 }
+
 struct gfont {
 	void *data;
 	int ascent;
