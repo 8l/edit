@@ -106,7 +106,7 @@ movewin(GWin *gw, int x, int y, int w, int h)
 
 	gw->x = x;
 	gw->y = y;
-	if (gw->w == w & gw->h == h)
+	if (gw->w == w && gw->h == h)
 		return;
 
 	xw = (XWin *)gw;
