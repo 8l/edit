@@ -139,6 +139,7 @@ log_clr(Log *l)
 {
 	Log *n;
 
+	assert(l);
 	assert(l->type == Commit);
 
 	n = l->next;
@@ -164,8 +165,7 @@ eb_new()
 void
 eb_del(EBuf *eb, unsigned p0, unsigned p1)
 {
-	if (eb->redo)
-		log_clr(eb->redo);
+	log_clr(eb->redo);
 	log_delete(eb->undo, &eb->b, p0, p1);
 	for (; p0 < p1; p1--)
 		buf_del(&eb->b, p1-1);
@@ -174,8 +174,7 @@ eb_del(EBuf *eb, unsigned p0, unsigned p1)
 void
 eb_ins(EBuf *eb, unsigned p0, Rune r)
 {
-	if (eb->redo)
-		log_clr(eb->redo);
+	log_clr(eb->redo);
 	log_insert(eb->undo, p0, p0+1);
 	buf_ins(&eb->b, p0, r);
 }
