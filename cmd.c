@@ -42,8 +42,8 @@ static int mode = Command;
 
 static int insert(Rune r);
 static int motion(struct cmd *c, unsigned *dst, int *linewise);
-static unsigned mvnext(Buf *b, unsigned cu, int in(Rune), int end, int cnt);
-static unsigned mvprev(Buf *b, unsigned cu, int in(Rune), int cnt);
+static unsigned mvnext(Buf *b, unsigned cu, int in(Rune), int end, unsigned cnt);
+static unsigned mvprev(Buf *b, unsigned cu, int in(Rune), unsigned cnt);
 static void perform(char buf, struct cmd *c, struct cmd *m);
 static int risalpha(Rune r);
 static int risascii(Rune r);
@@ -266,12 +266,11 @@ motion(struct cmd *c, unsigned *pcu, int *linewise)
 }
 
 static unsigned
-mvnext(Buf *b, unsigned cu, int in(Rune), int end, int cnt)
+mvnext(Buf *b, unsigned cu, int in(Rune), int end, unsigned cnt)
 {
 	int st, nx, i;
 	Rune r;
 
-	assert(cnt > 0);
 	assert(end == 0 || end == 1);
 	//if (end && buf_get(b, cu) == '\n')
 		//return cu;
@@ -293,7 +292,7 @@ mvnext(Buf *b, unsigned cu, int in(Rune), int end, int cnt)
 }
 
 static unsigned
-mvprev(Buf *b, unsigned cu, int in(Rune), int cnt)
+mvprev(Buf *b, unsigned cu, int in(Rune), unsigned cnt)
 {
 	while (cnt--) {
 		for (; cu && !in(buf_get(b, cu-1)); cu--)
