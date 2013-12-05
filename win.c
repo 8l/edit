@@ -88,7 +88,7 @@ win_redraw(W *w)
 
 	width = w->gw->w;
 	g->drawrect(w->gw, 0, 0, width, fheight, GPaleYellow);
-	if (w-wins < nwins)
+	if (w-wins < nwins-1)
 		/* if not leftmost window, draw the border */
 		g->drawrect(w->gw, width-1, 0, 1, fheight, GBlack);
 	draw(w);
