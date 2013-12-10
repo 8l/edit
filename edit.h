@@ -18,6 +18,6 @@ void eb_del(EBuf *, unsigned, unsigned);
 void eb_ins(EBuf *, unsigned, Rune);
 int eb_ins_utf8(EBuf *, unsigned, unsigned char *, int);
 void eb_clean(EBuf *);
-void eb_undo(EBuf *, int);
+void eb_undo(EBuf *, int, unsigned *);
 
 #endif /* ndef EDIT_H */

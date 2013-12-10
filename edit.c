@@ -74,7 +74,7 @@ log_commit(Log *l)
 }
 
 void
-log_undo(Log *l, Buf *b, Log *redo)
+log_undo(Log *l, Buf *b, Log *redo, unsigned *pp)
 {
 	Log *top, *n;
 	unsigned p0, p1;
@@ -109,6 +109,8 @@ log_undo(Log *l, Buf *b, Log *redo)
 		default:
 			abort();
 		}
+		if (pp)
+			*pp = p0;
 
 		n = l->next;
 		free(l);
@@ -202,7 +204,7 @@ eb_clean(EBuf *eb)
 }
 
 void
-eb_undo(EBuf *eb, int undo)
+eb_undo(EBuf *eb, int undo, unsigned *pp)
 {
 	Log *u, *r;
 
@@ -211,7 +213,7 @@ eb_undo(EBuf *eb, int undo)
 	else
 		u = eb->redo, r = eb->undo;
 
-	log_undo(u, &eb->b, r);
+	log_undo(u, &eb->b, r, pp);
 }
 
 
@@ -312,7 +314,7 @@ main() {
 		case '!':
 			if (eb->undo->type != Commit)
 				eb_clean(eb);
-			eb_undo(eb, 1);
+			eb_undo(eb, 1, 0);
 			break;
 		case '?':
 			dumplog(eb->undo);

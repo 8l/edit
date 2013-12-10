@@ -335,7 +335,7 @@ perform(char buf, struct cmd *c, struct cmd *m)
 	case 'u':
 		u = !u;
 	case '.':
-		eb_undo(curwin->eb, u);
+		eb_undo(curwin->eb, u, &curwin->cu);
 		break;
 	}
 }
