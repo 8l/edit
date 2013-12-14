@@ -1,4 +1,4 @@
-/*% clang -DWIN_TEST -Wall -g $(pkg-config --libs x11 xft) obj/{unicode,buf,x11}.o % -o #
+/*% clang -DWIN_TEST -Wall -g $(pkg-config --libs x11 xft) obj/{unicode,buf,edit,x11}.o % -o #
  */
 
 #include <assert.h>
@@ -412,7 +412,7 @@ void die(char *m) { exit(1); }
 int main()
 {
 	GEvent e;
-	Buf *b;
+	EBuf *eb;
 	W *w;
 	enum CursorLoc cloc;
 	unsigned char s[] =
@@ -423,14 +423,14 @@ int main()
 	"un peu d'unicode: ä æ ç\n"
 	"et voila!\n\n";
 
-	b = buf_new("*");
+	eb = eb_new();
 	win_init(&gui_x11);
-	// win_new(b);
-	w = win_new(b);
-	win_new(b); win_new(b); // win_new(b); win_new(b);
+	// win_new(eb);
+	w = win_new(eb);
+	win_new(eb); win_new(eb); // win_new(eb); win_new(eb);
 
 	for (int i=0; i<5; i++)
-		buf_ins_utf8(b, 0, s, sizeof s - 1);
+		eb_ins_utf8(eb, 0, s, sizeof s - 1);
 
 	do {
 		g->nextevent(&e);
