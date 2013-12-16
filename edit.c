@@ -10,6 +10,7 @@
 
 enum {
 	MaxBuf = 4,	/* maximal string stored in rbuf */
+	YankSize = 128,	/* initial size of a yank buffer */
 };
 
 struct log {
@@ -33,6 +34,8 @@ struct log {
  */
 
 static void pushlog(Log *, int);
+static void ybini(YBuf *, char id);
+// static void ybfin(YBuf *);
 
 void
 log_insert(Log *l, unsigned p0, unsigned p1)
@@ -156,11 +159,16 @@ EBuf *
 eb_new()
 {
 	EBuf *eb;
+	int i;
 
 	eb = malloc(sizeof *eb);
 	buf_init(&eb->b);
 	eb->undo = log_new();
 	eb->redo = log_new();
+	for (i=0; i<9; i++) {
+		eb->nb[i].r = 0;
+		ybini(&eb->nb[i], '?');
+	}
 	return eb;
 }
 
@@ -198,7 +206,7 @@ eb_ins_utf8(EBuf *eb, unsigned p0, unsigned char *data, int len)
 }
 
 void
-eb_clean(EBuf *eb)
+eb_commit(EBuf *eb)
 {
 	log_commit(eb->undo);
 }
@@ -241,6 +249,28 @@ pushlog(Log *log, int type)
 	log->p0 = log->np = 0;
 	log->next = l;
 }
+
+static void
+ybini(YBuf *yb, char id)
+{
+	assert(yb->r == 0);
+
+	yb->id = id;
+	yb->r = malloc(YankSize * sizeof(Rune));
+	assert(yb->r);
+	yb->sz = YankSize;
+	yb->nr = 0;
+}
+
+#if 0
+static void
+ybfin(YBuf *yb)
+{
+	yb->id = 'X';
+	free(yb->r);
+	yb->r = 0;
+}
+#endif
 
 
 #ifdef TEST

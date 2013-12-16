@@ -162,7 +162,7 @@ insert(Rune r)
 	if (r == GKEsc) {
 		if (curwin->cu > 0)
 			curwin->cu--;
-		eb_clean(eb);
+		eb_commit(eb);
 		return Command;
 	}
 
@@ -248,6 +248,13 @@ motion(struct cmd *c, unsigned *pcu, int *linewise)
 		eol = buf_eol(b, cu);
 		if (eol != cu)
 			cu = eol-1;
+
+		/* We change the original vi semantics
+		 * to go past the last character. It
+		 * makes more sense when '$' is combined
+		 * to 'c' or 'd'.
+		 */
+		cu = eol;
 		break;
 	}
 
