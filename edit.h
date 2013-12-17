@@ -8,11 +8,15 @@ typedef struct log  Log;
 typedef struct ebuf EBuf;
 typedef struct ybuf YBuf;
 
+enum {	/* flags for yank buffers */
+	LineMode = 1,
+};
+
 struct ybuf {
-	char id;
 	Rune *r;
 	unsigned nr;
 	unsigned sz;
+	int flags;
 };
 
 struct ebuf {

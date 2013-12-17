@@ -34,8 +34,7 @@ struct log {
  */
 
 static void pushlog(Log *, int);
-static void ybini(YBuf *, char id);
-// static void ybfin(YBuf *);
+static void ybini(YBuf *);
 
 void
 log_insert(Log *l, unsigned p0, unsigned p1)
@@ -167,8 +166,9 @@ eb_new()
 	eb->redo = log_new();
 	for (i=0; i<9; i++) {
 		eb->nb[i].r = 0;
-		ybini(&eb->nb[i], '?');
+		ybini(&eb->nb[i]);
 	}
+	eb->ntip = 0;
 	return eb;
 }
 
@@ -224,6 +224,36 @@ eb_undo(EBuf *eb, int undo, unsigned *pp)
 	log_undo(u, &eb->b, r, pp);
 }
 
+void
+eb_yank(EBuf *eb, unsigned p0, unsigned p1, YBuf *yb)
+{
+	Rune *pr;
+
+	assert(p0 <= p1);
+
+	if (!yb) {
+		if (--eb->ntip < 0)
+			eb->ntip += 9;
+		yb = &eb->nb[eb->ntip];
+	}
+
+	yb->nr = p1 - p0;
+
+	/* resize the yank buffer if it is
+	 * either too big from a previous yank
+	 * or too small to contain the data
+	 */
+	if (yb->nr > yb->sz || yb->sz > YankSize) {
+		free(yb->r);
+		yb->sz = yb->nr > YankSize ? yb->nr : YankSize;
+		yb->r = malloc(yb->sz * sizeof(Rune));
+		assert(yb->r);
+	}
+
+	for (pr = yb->r; p0 < p1; p0++, pr++)
+		*pr = buf_get(&eb->b, p0);
+}
+
 
 /* static functions */
 
@@ -251,26 +281,16 @@ pushlog(Log *log, int type)
 }
 
 static void
-ybini(YBuf *yb, char id)
+ybini(YBuf *yb)
 {
 	assert(yb->r == 0);
 
-	yb->id = id;
 	yb->r = malloc(YankSize * sizeof(Rune));
 	assert(yb->r);
 	yb->sz = YankSize;
 	yb->nr = 0;
+	yb->flags = 0;
 }
-
-#if 0
-static void
-ybfin(YBuf *yb)
-{
-	yb->id = 'X';
-	free(yb->r);
-	yb->r = 0;
-}
-#endif
 
 
 #ifdef TEST
