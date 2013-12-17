@@ -155,7 +155,7 @@ a digit.  If the rune we got is not one of these two we will
 signal an error and abort the current command parsing.
 
 @d risascii(r) ((r) <= '~')
-@d risbuf(r) (risascii(r) && islower((unsigned char)r))
+@d risbuf(r) (risascii(r) && islower((unsigned char)(r)))
 
 @<Input current buffer name@>=
 if (!risbuf(r)) goto err;
