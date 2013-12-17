@@ -4,9 +4,10 @@ V = @
 
 TOP = .
 
-CC    := clang
-LD    := clang
-STRIP := strip
+CC     := clang
+LD     := clang
+TANGLE := ctangle
+STRIP  := strip
 
 LDFLAGS += $$(pkg-config --libs x11 xft)
 CFLAGS  += -g --std=c99 -Wall -Wextra $$(pkg-config --cflags x11 xft)
@@ -32,6 +33,10 @@ $(OBJDIR)/%.o: %.c
 	@echo cc $<
 	@mkdir -p $(@D)
 	$(V)$(CC) $(CFLAGS) -c -o $@ $<
+
+%.c: %.w
+	@echo tangle $<
+	$(V)$(TANGLE) $<
 
 $(OBJDIR)/edit: $(OBJFILES)
 	@echo ld $@
