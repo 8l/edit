@@ -47,35 +47,24 @@ enum {
 static int mode = Command;
 
 
-@* Parsing of commands. The main parsing function will read runes one
-by one, it needs to remember them to be able to repeat commands later.
-We use a simple linked list of fixed size buffers for this purpose.
-
-@d ChunkSize 512 /* size of one buffer in the linked list */
-
-@<Local variables@>=
-static struct blink {
-	Rune chunk[ChunkSize];
-	int end;
-	struct blink *next;
-} curcmd;
-
-@ We structure the parsing function as a simple state machine.
-The state must be persistent across function calls so we must
-make it static.  Depending on the rune we just got, this state
-needs to be updated.
+@* Parsing of commands. We structure the parsing function as a
+simple state machine.  The state must be persistent across function
+calls so we must make it static.  Depending on the rune we just
+got, this state needs to be updated. We also need to remember the
+rune we got to be able to repeat commands.
 
 @<Definition of |cmd_parse|@>=
 void
 cmd_parse(Rune r)
 {
 	@<Initialize the internal state of |cmd_parse|@>;
+	@<Memorize the rune |r|@>;
 	if (mode == Insert) {
-		if (r == GKEsc) { /* the escape key switches back to command mode */
-			mode = Command;
-			return;
-		}
 		@<Handle rune |r| in insert mode@>;
+	}
+	if (r == GKEsc) { /* universal abort key */
+		@<Reset parsing state@>;
+		return;
 	}
 	@<Update internal state of |cmd_parse|@>;
 	return;
@@ -216,6 +205,37 @@ We also need to change the state back to |BufferDQuote|.
 m.count = c.count = 0;
 pcmd = &c;
 state = BufferDQuote;
+
+@ The main parsing function needs to remember the runes it read.
+We use a simple buffer that is grown on demand when the command gets
+too long.
+
+@<Local variables@>=
+static struct {
+	Rune *buf;
+	unsigned end, size;
+} curc;
+
+@ @<Memorize the rune...@>=
+if (curc->end >= curc->size) {
+	curc->size = 2 * curc->size + 512;
+	curc->buf = realloc(curc->buf, curc->size * sizeof(Rune));
+}
+curc->buf[curc->end++] = r;
+
+@ When cleaning the parsing state we try to shrink the command buffer
+if it is past a certain sane treshold defined here.  This avoids
+having a fat memory footprint only because of one huge editing command.
+
+@d FatTreshold 9000
+
+@<Reset parsing state@>=
+if (curc->size > FatTreshold) {
+	free(curc->buf);
+	curc->buf = 0;
+	curc->size = 0;
+}
+curc->end = 0;
 
 
 @* Execution of the parsed commands.
