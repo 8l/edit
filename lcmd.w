@@ -135,7 +135,6 @@ if (r == '"')
 	state = BufferName;
 else {
 	state = CmdChar;
-	pcmd = &c;
 	cmd_parse(r);
 }
 
@@ -150,7 +149,6 @@ signal an error and abort the current command parsing.
 if (!risbuf(r)) goto err;
 buf = r;
 state = CmdChar;
-pcmd = &c;
 
 @ The |CmdChar| state needs to handle both the count and the command
 name.  Depending on the command kind (double char, expecting an
