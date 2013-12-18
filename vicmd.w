@@ -17,7 +17,7 @@ simple implementation allows us.
 @<External variables@>@/
 @<File local variables and structures@>@/
 @<Subroutines@>@/
-@<Definition of |cmd_parse|@>
+@<Definition of the parsing function |cmd_parse|@>
 
 @ We will need to edit buffers, have the rune and window types available. 
 Our own header file is also included to allow the compiler to check
@@ -55,7 +55,7 @@ calls so we must make it static.  Depending on the rune we just
 got, this state needs to be updated. We also need to remember the
 rune we got to be able to repeat commands.
 
-@<Definition of |cmd_parse|@>=
+@<Definition of the parsing fun...@>=
 void
 cmd_parse(Rune r)
 {
@@ -226,7 +226,8 @@ if (curc.end >= curc.size) {
 }
 curc.buf[curc.end++] = r;
 
-@ @<Forget the rune...@>= @+curc.end--;
+@ @<Forget the rune...@>=
+curc.end--;
 
 @ When cleaning the parsing state we try to shrink the command buffer
 if it is past a certain sane treshold defined here.  This avoids
