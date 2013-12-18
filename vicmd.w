@@ -74,19 +74,20 @@ err:	puts("invalid command!");
 }
 
 
-@ Usual \.{vi} commands will consist of at most four parts.
+@ Usual \.{vi} commands will consist of at most four parts described
+below.
 
-\yskip\bull The buffer (which can be any latin letter or digit) on which
-	the command should act.  A buffer is specified if the commands
-	starts with a double quote.
+\yskip\bull The buffer---which can be any latin letter or digit---on which
+	the command should act.  A buffer can be specified by starting
+	with a \." character.
 \bull The count which indicates how many times a command needs to
 	be performed. We have to be careful here because there is a
 	special case: \.0 is a command.
-\bull The actual command character which can be almost any letter.
-	Some commands take an argument, for instance the \.\% command.
+\bull The actual main command character which can be almost any letter.
+	Some commands require an argument, for instance the \.m command.
 \bull An optional motion that is designating the area of text on
-	which the previous command must act. Note that this command
-	can also take its own count.
+	which the main command must act. This motion is also a command
+	and can have its own count and argument.
 
 \yskip\noindent The structure defined below is a ``light'' command which
 cannot store a motion component.  We make this choice to permit
@@ -108,8 +109,8 @@ static Cmd c, m, *pcmd = &c;
 static enum {
 	BufferDQuote,	/* expecting a double quote */
 	BufferName,	/* expecting the buffer name */
-	CmdChar,	/* expecting a command char */
-	CmdDouble,	/* expecting double char command */
+	CmdChar,	/* expecting a command char or count */
+	CmdDouble,	/* expecting the second char of a command */
 	CmdArg		/* expecting the command argument */
 } state = BufferDQuote;
 
@@ -126,15 +127,17 @@ case CmdArg: @<Get the command argument@>; @+break;
 default: abort();
 }
 
-@ When parsing a command a buffer can be provided if the double
-quote character is used.  If we get something different it means
-that we got a command character directly so we retry parsing
-in the state |CmdChar|.
+@ When parsing a command, one buffer can be specified if the double
+quote character is used.  If we get any other rune, we directly
+retry to parse it as a command character by switching the state
+to |CmdChar|.  To prevent memorizing the rune twice we forget it
+once before the recursive call.
 
 @<Get optional double quote@>=
 if (r == '"')
 	state = BufferName;
 else {
+	@<Forget the rune |r|@>;
 	state = CmdChar;
 	cmd_parse(r);
 }
@@ -222,6 +225,8 @@ if (curc.end >= curc.size) {
 	curc.buf = realloc(curc.buf, curc.size * sizeof(Rune));
 }
 curc.buf[curc.end++] = r;
+
+@ @<Forget the rune...@>= @+curc.end--;
 
 @ When cleaning the parsing state we try to shrink the command buffer
 if it is past a certain sane treshold defined here.  This avoids
