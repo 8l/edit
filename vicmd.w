@@ -14,8 +14,8 @@ simple implementation allows us.
 
 @c
 @<Header files to include@>@/
-@<External variables and structure definitions@>@/
-@<Local variables@>@/
+@<External variables@>@/
+@<File local variables and structures@>@/
 @<Subroutines@>@/
 @<Definition of |cmd_parse|@>
 
@@ -24,8 +24,8 @@ Our own header file is also included to allow the compiler to check
 consistency between definitions and declarations.  For debugging
 purposes we also include \.{stdio.h}.
 
-@f Rune int /* Rune is a type provided by \.{unicode.h} */
-@f W int /* W is the window type, provided by \.{win.h} */
+@f Rune int /* the type for runes is provided by \.{unicode.h} */
+@f W int /* the window type is provided by \.{win.h} */
 
 @<Header files...@>=
 #include <assert.h>
@@ -41,7 +41,7 @@ purposes we also include \.{stdio.h}.
 mode we are currently into.  When the editor starts it is in
 command mode.
 
-@<Local variables@>=
+@<File local variables...@>=
 enum {
 	Command = 'c',
 	Insert = 'i'
@@ -96,7 +96,7 @@ of two such structures, one is the main command, the other is the
 motion command.
 
 
-@<External...@>=
+@<File local var...@>=
 typedef struct {
 	unsigned short count;
 	unsigned char chr;
@@ -157,7 +157,7 @@ state = CmdChar;
 @ The |CmdChar| state needs to handle both the count and the command
 name.  Depending on the command kind (double char, expecting an
 argument, ...) we have to update the state differently.  To get this
-information about the command we use the global array of flags |cmds|.
+information about the command we use the array of flags |keys|.
 
 @<Input command count and name@>=
 if (!risascii(r)) goto err;
@@ -166,15 +166,15 @@ if (isdigit((unsigned char)r) && (r != '0' || pcmd->count)) {
 	pcmd->count = 10 * pcmd->count + (r - '0');
 } else {
 	pcmd->chr = r;
-	if (cmds[pcmd->chr] & CDbl) {
+	if (keys[pcmd->chr] & CDbl) {
 		state = CmdDouble; @+break;
 	}
 gotdbl:
-	if (cmds[pcmd->chr] & CArg) {
+	if (keys[pcmd->chr] & CArg) {
 		state = CmdArg; @+break;
 	}
 gotarg:
-	if (cmds[pcmd->chr] & CMot) {
+	if (keys[pcmd->chr] & CMot) {
 		assert(pcmd == &c);
 		pcmd = &m; @+break;
 	}
@@ -213,7 +213,7 @@ state = BufferDQuote;
 We use a simple buffer that is grown on demand when the command gets
 too long.
 
-@<Local variables@>=
+@<File local variables...@>=
 static struct {
 	Rune *buf;
 	unsigned end, size;
@@ -242,23 +242,36 @@ if (curc.size > FatTreshold) {
 }
 curc.end = 0;
 
-@ The |cmds| table contains a set of flags used to specify the proper
-parsing of each \.{vi} command. These commands are \ASCII\ characters
-thus the table only needs 128 entries.
+@ The |keys| table contains a set of flags used to specify the proper
+parsing and interpretation of each \.{vi} command. These commands are
+\ASCII\ characters thus the table only needs 128 entries.
 
 @d CDbl 1 /* is the command a double character command */
 @d CArg 2 /* is the command expecting an argument */
 @d CMot 4 /* is the command expecting a motion */
 
-@<Local variables@>=
-static int cmds[128] = {@/
-	['d'] = CMot,
-	['m'] = CArg,
-	['['] = CDbl,
-	['\''] = CArg
+@<File local variables...@>=
+static int keys[128] = {@/
+	['d'] = CMot, ['m'] = CArg, ['['] = CDbl, ['\''] = CArg
 };
 
-@* Execution of the parsed commands.
+@* Execution of the parsed commands.  Two major kind of commands must
+be considered here: {\it destructive} commands and {\it motion} commands.
+Motion commands can be used as parameters for destructive commands,
+they almost always have two semantics, one when they are used bare
+to move the cursor and one when they are used as parameter.  Destructive
+commands often accept a buffer parameter to store the deleted text.
+If no buffer is explicitely specified, a {\it numeric} buffer is used
+instead.
+
+Buffers can be in two modes: {\it character} mode and {\it text}
+mode.  This distinction entails a semantic difference when the text is
+copied from buffers.  If the buffer is in line mode, atomic elements of
+the document are lines, thus, a copy will affect only entire lines.  If the
+buffer is in character mode, parts of lines can be altered by a copy.  The
+mode of a buffer is determined when text is assigned to it, most often the
+motion command used as parameter of a destructive command is responsible
+for setting the buffer mode.
 
 @ The commands will act on the active window. This window can be
 accessed using an external variable.
