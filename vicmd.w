@@ -3,6 +3,7 @@
 \nocon % omit table of contents
 % \datethis % print date on listing
 \def\bull{\item{$\bullet$}}
+\def\ASCII{{\sc ASCII}}
 
 @* Implementation of \.{vi} commands.  We try to provide an implementation
 roughly \.{POSIX} compliant of the \.{vi} text editor.  The only important
@@ -15,7 +16,7 @@ simple implementation allows us.
 @<Header files to include@>@/
 @<External variables and structure definitions@>@/
 @<Local variables@>@/
-@<Helper functions@>@/
+@<Subroutines@>@/
 @<Definition of |cmd_parse|@>
 
 @ We will need to edit buffers, have the rune and window types available. 
@@ -27,6 +28,7 @@ purposes we also include \.{stdio.h}.
 @f W int /* W is the window type, provided by \.{win.h} */
 
 @<Header files...@>=
+#include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,9 +61,8 @@ cmd_parse(Rune r)
 {
 	@<Initialize the internal state of |cmd_parse|@>;
 	@<Memorize the rune |r|@>;
-	if (mode == Insert) {
-		@<Handle rune |r| in insert mode@>;
-	}
+	if (mode == Insert)
+		@<Interpret rune |r| in insert mode@>;
 	if (r == GKEsc) { /* universal abort key */
 		@<Reset parsing state@>;
 		return;
@@ -138,7 +139,7 @@ else {
 	cmd_parse(r);
 }
 
-@ Buffer names cannot be anything else than an \.{ASCII} letter or
+@ Buffer names cannot be anything else than an \ASCII\ letter or
 a digit.  If the rune we got is not one of these two we will
 signal an error and abort the current command parsing.
 
@@ -166,11 +167,11 @@ if (isdigit((unsigned char)r) && (r != '0' || pcmd->count)) {
 		state = CmdDouble; @+break;
 	}
 gotdbl:
-	if (cmd[pcmd->chr] & CArg) {
+	if (cmds[pcmd->chr] & CArg) {
 		state = CmdArg; @+break;
 	}
 gotarg:
-	if (cmd[pcmd->chr] & CMot) {
+	if (cmds[pcmd->chr] & CMot) {
 		assert(pcmd == &c);
 		pcmd = &m; @+break;
 	}
@@ -184,7 +185,7 @@ second character received is the same as the first and resume
 the processing performed in |@<Input command count...@>|.
 
 @<Get the second char...@>=
-if (r != pcmd->c)
+if (r != pcmd->chr)
 	goto err;
 goto gotdbl;
 
@@ -196,11 +197,12 @@ goto gotarg;
 
 @ The internal state is reset by zeroing the |count| field of the
 commands, this is necessary since |@<Input command count...@>| relies
-on it to determine if 0 is part of the count or the command name.
-We also need to change the state back to |BufferDQuote|.
+on it to determine if a received |'0'| is part of the count or is the
+command name.  We also need to change the state back to |BufferDQuote|.
 
 @<Reset parsing state@>=
 m.count = c.count = 0;
+buf = 0;
 pcmd = &c;
 state = BufferDQuote;
 
@@ -215,11 +217,11 @@ static struct {
 } curc;
 
 @ @<Memorize the rune...@>=
-if (curc->end >= curc->size) {
-	curc->size = 2 * curc->size + 512;
-	curc->buf = realloc(curc->buf, curc->size * sizeof(Rune));
+if (curc.end >= curc.size) {
+	curc.size = 2 * curc.size + 512;
+	curc.buf = realloc(curc.buf, curc.size * sizeof(Rune));
 }
-curc->buf[curc->end++] = r;
+curc.buf[curc.end++] = r;
 
 @ When cleaning the parsing state we try to shrink the command buffer
 if it is past a certain sane treshold defined here.  This avoids
@@ -228,13 +230,28 @@ having a fat memory footprint only because of one huge editing command.
 @d FatTreshold 9000
 
 @<Reset parsing state@>=
-if (curc->size > FatTreshold) {
-	free(curc->buf);
-	curc->buf = 0;
-	curc->size = 0;
+if (curc.size > FatTreshold) {
+	free(curc.buf);
+	curc.buf = 0;
+	curc.size = 0;
 }
-curc->end = 0;
+curc.end = 0;
 
+@ The |cmds| table contains a set of flags used to specify the proper
+parsing of each \.{vi} command. These commands are \ASCII\ characters
+thus the table only needs 128 entries.
+
+@d CDbl 1 /* is the command a double character command */
+@d CArg 2 /* is the command expecting an argument */
+@d CMot 4 /* is the command expecting a motion */
+
+@<Local variables@>=
+static int cmds[128] = {@/
+	['d'] = CMot,
+	['m'] = CArg,
+	['['] = CDbl,
+	['\''] = CArg
+};
 
 @* Execution of the parsed commands.
 
