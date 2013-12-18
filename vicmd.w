@@ -52,24 +52,22 @@ static int mode = Command;
 @* Parsing of commands. We structure the parsing function as a
 simple state machine.  The state must be persistent across function
 calls so we must make it static.  Depending on the rune we just
-got, this state needs to be updated. We also need to remember the
-rune we got to be able to repeat commands.
+got, this state needs to be updated.  Errors during the state
+update are handled by a |goto err| statement which resets the
+parsing state and outputs an error message.
 
 @<Definition of the parsing fun...@>=
 void
 cmd_parse(Rune r)
 {
-	@<Initialize the internal state of |cmd_parse|@>;
-	@<Memorize the rune |r|@>;
-	if (mode == Insert)
-		@<Interpret rune |r| in insert mode@>;
-	if (r == GKEsc) { /* universal abort key */
-		@<Reset parsing state@>;
-		return;
+	@<Initialize the persistent state of |cmd_parse|@>;
+	switch (mode) {
+	case Insert: insert(r); @+break;
+	case Command: @<Update parsing state@>; @+break;
 	}
-	@<Update internal state of |cmd_parse|@>;
 	return;
-err:	puts("invalid command!");
+err:	puts("! invalid command");
+@.invalid command@>
 	@<Reset parsing state@>;
 }
 
@@ -103,7 +101,7 @@ typedef struct {
 	Rune arg;
 } Cmd;
 
-@ @<Initialize the internal state...@>=
+@ @<Initialize the pers...@>=
 static char buf;
 static Cmd c, m, *pcmd = &c;
 static enum {
@@ -116,28 +114,30 @@ static enum {
 
 @ Updating the |cmd_parse| internal state is done by looking first
 at our current state and then at the rune |r| we were just given.
+If the input rune is |GKEsc| we cancel any partial parsing by
+resetting the state.
 
-@<Update internal state...@>=
-switch (state) {
-case BufferDQuote: @<Get optional double quote@>; @+break;
-case BufferName: @<Input current buffer name@>; @+break;
-case CmdChar: @<Input command count and name@>; @+break;
-case CmdDouble: @<Get the second character of a command@>; @+break;
-case CmdArg: @<Get the command argument@>; @+break;
-default: abort();
-}
+@<Update pars...@>=
+if (r == GKEsc) @<Reset pars...@>@;
+else
+	@+switch (state) {
+	case BufferDQuote: @<Get optional double quote@>; @+break;
+	case BufferName: @<Input current buffer name@>; @+break;
+	case CmdChar: @<Input command count and name@>; @+break;
+	case CmdDouble: @<Get the second character of a command@>; @+break;
+	case CmdArg: @<Get the command argument@>; @+break;
+	default: abort();
+	}
 
 @ When parsing a command, one buffer can be specified if the double
 quote character is used.  If we get any other rune, we directly
 retry to parse it as a command character by switching the state
-to |CmdChar|.  To prevent memorizing the rune twice we forget it
-once before the recursive call.
+to |CmdChar|.
 
 @<Get optional double quote@>=
 if (r == '"')
 	state = BufferName;
 else {
-	@<Forget the rune |r|@>;
 	state = CmdChar;
 	cmd_parse(r);
 }
@@ -146,8 +146,8 @@ else {
 a digit.  If the rune we got is not one of these two we will
 signal an error and abort the current command parsing.
 
-@d risascii(r) ((r) <= '~')
-@d risbuf(r) (risascii(r) && islower((unsigned char)(r)))
+@d risascii(r) ((r) < 0x7f)
+@d risbuf(r) (risascii(r) && (islower(r) || isdigit(r)))
 
 @<Input current buffer name@>=
 if (!risbuf(r)) goto err;
@@ -162,7 +162,7 @@ information about the command we use the array of flags |keys|.
 @<Input command count and name@>=
 if (!risascii(r)) goto err;
 
-if (isdigit((unsigned char)r) && (r != '0' || pcmd->count)) {
+if (isdigit(r) && (r != '0' || pcmd->count)) {
 	pcmd->count = 10 * pcmd->count + (r - '0');
 } else {
 	pcmd->chr = r;
@@ -192,9 +192,7 @@ if (r != pcmd->chr)
 	goto err;
 goto gotdbl;
 
-@ The handling of arguments is similar and simple.
-
-@<Get the command arg...@>=
+@ @<Get the command arg...@>=
 pcmd->arg = r;
 goto gotarg;
 
@@ -204,44 +202,11 @@ on it to determine if a received |'0'| is part of the count or is the
 command name.  We also need to change the state back to |BufferDQuote|.
 
 @<Reset parsing state@>=
-m.count = c.count = 0;
-buf = 0;
-pcmd = &c;
-state = BufferDQuote;
-
-@ The main parsing function needs to remember the runes it read.
-We use a simple buffer that is grown on demand when the command gets
-too long.
-
-@<File local variables...@>=
-static struct {
-	Rune *buf;
-	unsigned end, size;
-} curc;
-
-@ @<Memorize the rune...@>=
-if (curc.end >= curc.size) {
-	curc.size = 2 * curc.size + 512;
-	curc.buf = realloc(curc.buf, curc.size * sizeof(Rune));
+{	m.count = c.count = 0;
+	buf = 0;
+	pcmd = &c;
+	state = BufferDQuote;
 }
-curc.buf[curc.end++] = r;
-
-@ @<Forget the rune...@>=
-curc.end--;
-
-@ When cleaning the parsing state we try to shrink the command buffer
-if it is past a certain sane treshold defined here.  This avoids
-having a fat memory footprint only because of one huge editing command.
-
-@d FatTreshold 9000
-
-@<Reset parsing state@>=
-if (curc.size > FatTreshold) {
-	free(curc.buf);
-	curc.buf = 0;
-	curc.size = 0;
-}
-curc.end = 0;
 
 @ The |keys| table contains a set of flags used to specify the proper
 parsing and interpretation of each \.{vi} command. These commands are
