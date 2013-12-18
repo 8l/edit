@@ -289,7 +289,7 @@ ybini(YBuf *yb)
 	assert(yb->r);
 	yb->sz = YankSize;
 	yb->nr = 0;
-	yb->flags = 0;
+	yb->linemode = 0;
 }
 
 
