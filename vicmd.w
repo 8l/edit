@@ -25,7 +25,8 @@ consistency between definitions and declarations.  For debugging
 purposes we also include \.{stdio.h}.
 
 @f Rune int /* the type for runes is provided by \.{unicode.h} */
-@f W int /* the window type is provided by \.{win.h} */
+@f W int /* the window type, provided by \.{win.h} */
+@f EBuf int /* the buffer type, provided by \.{edit.h} */
 
 @<Header files...@>=
 #include <assert.h>
@@ -239,10 +240,52 @@ mode of a buffer is determined when text is assigned to it, most often the
 motion command used as parameter of a destructive command is responsible
 for setting the buffer mode.
 
-@ The commands will act on the active window. This window can be
-accessed using an external variable.
+@ The commands will act on the active window.  This window is stored
+in a global variable.
 
 @<External...@>=
 extern W *curwin;
+
+@ The switch into the insertion mode is triggered by an insertion command;
+it can be \.i, \.a or \.c for instance.  Some of these commands take a count
+that indicates how many times the typed text must be repeated.  To implement
+this behavior we maintain a variable that gives the length of the current
+insert.
+
+@<File local...@>=
+static unsigned nins; /* length of the current insert */
+static unsigned short cins; /* count of the current insert */
+
+@ When running in insertion mode, the runes are directly written in the current
+buffer.  We need to take care of special runes which have a distinguished
+meaning.  The key |GKEsc| leaves the insertion mode to go back to command mode,
+|GKBackspace| will erase the previous character if it is part of the current
+insertion.
+
+@<Sub...@>=
+static void insert(Rune r)
+{
+	EBuf *eb = curwin->eb;
+	switch (r) {
+	case GKEsc: @<Repeat insert |cins-1| times and leave insert mode@>; @+break;
+	case GKBackspace:
+		if (nins > 0) {
+			eb_del(eb, curwin->cu-1, curwin->cu);
+			curwin->cu--, nins--;
+		}
+		break;
+	default: eb_ins(eb, curwin->cu++, r), nins++;@+break;
+	}
+}
+
+@ @<Repeat insert...@>=
+assert(cins != 0);
+while (--cins)
+	for (unsigned cnt=nins; cnt--;) {
+		r = buf_get(&eb->b, cuwin->cu - nins);
+		eb_ins(eb, curwin->cu++, r);
+	}
+if (buf_get(&eb->b, cuwin->cu-1) != '\n') curwin->cu--;
+mode = Command
 
 @* Index.
