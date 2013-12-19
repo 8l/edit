@@ -5,18 +5,20 @@
 \def\bull{\item{$\bullet$}}
 \def\ASCII{{\sc ASCII}}
 
-@* Implementation of \.{vi} commands.  We try to provide an implementation
-roughly \.{POSIX} compliant of the \.{vi} text editor.  The only important
-function exported by this module will take unicode runes and parse them
-to construct commands, these commands are then executed on the currently
-edited buffer.  We try to follow the \.{POSIX} standard as closely as a
-simple implementation allows us.
+@ This module provides an implementation of \.{vi} commands.  We try to
+provide an implementation roughly \.{POSIX} compliant of the \.{vi} text
+editor.  The only important function exported by this module accepts
+unicode runes and parse them to construct commands, these commands are
+then executed on the currently focused window.  We try to follow the
+\.{POSIX} standard as closely as a simple implementation allows us.
 
 @c
 @<Header files to include@>@/
 @<External variables@>@/
-@<File local variables and structures@>@/
-@<Subroutines@>@/
+@<Local types@>@/
+@<Predeclared functions@>@/
+@<File local variables@>@/
+@<Subroutines and motion commands@>@/
 @<Definition of the parsing function |cmd_parse|@>
 
 @ We will need to edit buffers, have the rune and window types available. 
@@ -50,7 +52,7 @@ enum {
 static int mode = Command;
 
 
-@* Parsing of commands. We structure the parsing function as a
+@** Parsing of commands. We structure the parsing function as a
 simple state machine.  The state must be persistent across function
 calls so we must make it static.  Depending on the rune we just
 got, this state needs to be updated.  Errors during the state
@@ -95,7 +97,7 @@ of two such structures, one is the main command, the other is the
 motion command.
 
 
-@<File local var...@>=
+@<Local typ...@>=
 typedef struct {
 	unsigned short count;
 	unsigned char chr;
@@ -167,19 +169,18 @@ if (isdigit(r) && (r != '0' || pcmd->count)) {
 	pcmd->count = 10 * pcmd->count + (r - '0');
 } else {
 	pcmd->chr = r;
-	if (keys[pcmd->chr] & CDbl) {
+	if (keys[pcmd->chr].flags & CIsDouble) {
 		state = CmdDouble; @+break;
 	}
 gotdbl:
-	if (keys[pcmd->chr] & CArg) {
+	if (keys[pcmd->chr].flags & CHasArg) {
 		state = CmdArg; @+break;
 	}
 gotarg:
-	if (keys[pcmd->chr] & CMot) {
+	if (keys[pcmd->chr].flags & CHasMotion) {
 		assert(pcmd == &c);
 		pcmd = &m; @+break;
 	}
-
 	docmd(buf, c, m);
 	@<Reset parsing state@>;
 }
@@ -210,28 +211,28 @@ command name.  We also need to change the state back to |BufferDQuote|.
 }
 
 @ The |keys| table contains a set of flags used to specify the proper
-parsing and interpretation of each \.{vi} command. These commands are
-\ASCII\ characters thus the table only needs 128 entries.
+parsing and interpretation of each \.{vi} command.  It also contains
+a description of the action to do that we postpone for later. The \.{vi}
+commands are \ASCII\ characters so the table only needs 128 entries.
 
-@d CDbl 1 /* is the command a double character command */
-@d CArg 2 /* is the command expecting an argument */
-@d CMot 4 /* is the command expecting a motion */
+@d CIsDouble 1 /* is the command a double character command */
+@d CHasArg 2 /* is the command expecting an argument */
+@d CHasMotion 4 /* is the command expecting a motion */
+@d CIsMotion 8 /* is this a motion command */
 
 @<File local variables...@>=
-static int keys[128] = {@/
-	['d'] = CMot, ['m'] = CArg, ['['] = CDbl, ['\''] = CArg
-};
+static struct {
+	int flags;
+	@<Other key fields@>@;
+} keys[128] = { @<Key definitions@> };
 
-@* Execution of the parsed commands.  Two major kind of commands must
-be considered here: {\sl destructive} commands and {\sl motion} commands.
-Motion commands can be used as parameters for destructive commands,
-they almost always have two semantics, one when they are used bare
-to move the cursor and one when they are used as parameter.  Destructive
-commands often accept a buffer parameter to store the deleted text.
-If no buffer is explicitely specified, a {\sl numeric} buffer is used
-instead.
 
-Buffers can be in two modes: {\sl character} mode and {\sl text}
+@** Execution of the parsed commands.
+Two major kind of commands must be considered here: {\sl destructive}
+commands and {\sl motion} commands.
+
+
+@ {\bf Move me} Buffers can be in two modes: {\sl character} mode and {\sl text}
 mode.  This distinction entails a semantic difference when the text is
 copied from buffers.  If the buffer is in line mode, atomic elements of
 the document are lines, thus, a copy will affect only entire lines.  If the
@@ -240,17 +241,18 @@ mode of a buffer is determined when text is assigned to it, most often the
 motion command used as parameter of a destructive command is responsible
 for setting the buffer mode.
 
-@ The commands will act on the active window.  This window is stored
-in a global variable.
+@ The commands act on the active window.  This window is accessible
+via a global program variable.
 
 @<External...@>=
 extern W *curwin;
 
-@ The switch into the insertion mode is triggered by an insertion command;
-it can be \.i, \.a or \.c for instance.  Some of these commands take a count
-that indicates how many times the typed text must be repeated.  To implement
-this behavior we maintain a variable that gives the length of the current
-insert and one that gives the number of times this insert needs to be done.
+@* Insertion mode. The switch into the insertion mode is triggered by an
+insertion command; it can be \.i, \.a or \.c for instance.  Some of these
+commands take a count that indicates how many times the typed text must
+be repeated.  To implement this behavior we maintain a variable that gives
+the length of the current insert and one that gives the number of times
+this insert needs to be done.
 
 @<File local...@>=
 static unsigned nins; /* length of the current insert */
@@ -292,4 +294,94 @@ while (--cins)
 if (buf_get(&eb->b, curwin->cu-1) != '\n') curwin->cu--;
 eb_commit(eb), mode = Command;
 
-@* Index.
+@* Motion commands. They can be used as parameters for destructive commands,
+they almost always have two semantics, one when they are used bare
+to move the cursor and one when they are used as parameter.  All motion
+commands defined below will return 0 if they succeed and 1 if they fail.
+
+Because of the different behaviors a motion command can have, we use a
+structure to store the motion action that has both the beginning and end
+of the region affected, and the final cursor position if used bare.
+
+We also need a field of flags
+
+\yskip\bull |MLinewise| is set if the motion operates on full lines or on characters.
+	At first sight this is more related to the motion command
+	than the motion result, so it should be in |keys| rather than in
+	this structure.  But this would not be precise enough: The standard mandates
+	that certain commands, depending on the invocation context, give linewise or
+	character wise motions.  This is for instance the case for \.\}.
+\bull |MError| is set to indicate if the command must signal an error
+	when called to move the cursor.  This is used, for instance, when executing
+	\.l at the end of a line.  Even if this flag is set, the contents of the
+	motion structure should make sense, to the contrary of what happens when
+	1 is returned by the motion command.
+
+\yskip\noindent When a motion command is called, |mbeg| is set to the current cursor
+postion and |mflags == 0|.
+
+@d MLinewise 1
+@d MError 2
+
+@<Local typ...@>=
+typedef struct {
+	unsigned beg, end;
+	unsigned mov;
+	int flags;
+} Motion;
+
+@ The most elementary cursor motions in \.{vi} are \.h \.j \.k and \.l.
+We must note that the \.{POSIX} specification mandates a subtle difference
+of behaviors between vertical and horizontal motions.  When a count
+is specified, the horizontal motion must succeed even if the count is
+too big while vertical motions must fail in this corner case.  In this
+implementation files do not have ends, so a vertical motion towards the
+end of the buffer will always succeed.
+
+@d cureb (curwin->eb)
+@d curb (&cureb->b)
+@f line x /* do not make line a keyword */
+
+@<Predecl...@>=
+static int m_hl(Cmd, Motion *);
+static int m_jk(Cmd, Motion *);
+
+@ @<Subr...@>=
+static int m_hl(Cmd c, Motion *m)
+{
+	int line, col;
+	buf_getlc(curb, m->beg, &line, &col);
+	if (c.chr == 'h') {
+		m->mov = buf_setlc(curb, line, col - c.count);
+		m->end = m->beg, m->beg = m->mov;
+	} else {
+		m->mov = buf_setlc(curb, line, col + c.count);
+		m->end = m->mov, m->beg = curwin->cu;
+		if (buf_get(curb, m->beg+1) == '\n') {
+			m->mov = m->beg;
+			m->flags |= MError;
+		}
+	}
+	return 0;
+}
+
+@ @<Subr...@>=
+static int m_jk(Cmd c, Motion *m)
+{
+	int line, col;
+	buf_getlc(curb, m->beg, &line, &col);
+	if (c.chr == 'j') {
+		m->mov = buf_setlc(curb, line + c.count, col);
+		m->beg = buf_bol(curb, curwin->cu);
+		m->end = buf_eol(curb, m->mov) + 1;
+	} else {
+		if (c.count > line) return 1;
+		m->mov = buf_setlc(curb, line - c.count, col);
+		m->end = buf_eol(curb, m->beg) + 1;
+		m->beg = buf_bol(curb, m->mov);
+	}
+	m->flags |= MLinewise;
+	return 0;
+}
+
+@** Index.
