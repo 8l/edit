@@ -250,7 +250,7 @@ extern W *curwin;
 it can be \.i, \.a or \.c for instance.  Some of these commands take a count
 that indicates how many times the typed text must be repeated.  To implement
 this behavior we maintain a variable that gives the length of the current
-insert.
+insert and one that gives the number of times this insert needs to be done.
 
 @<File local...@>=
 static unsigned nins; /* length of the current insert */
@@ -258,16 +258,16 @@ static unsigned short cins; /* count of the current insert */
 
 @ When running in insertion mode, the runes are directly written in the current
 buffer.  We need to take care of special runes which have a distinguished
-meaning.  The key |GKEsc| leaves the insertion mode to go back to command mode,
-|GKBackspace| will erase the previous character if it is part of the current
-insertion.
+meaning.  The key |GKEsc| leaves the insertion mode and goes back to command
+mode, |GKBackspace| will erase the previous character if it is part of the
+current insertion.
 
 @<Sub...@>=
 static void insert(Rune r)
 {
 	EBuf *eb = curwin->eb;
 	switch (r) {
-	case GKEsc: @<Repeat insert |cins-1| times and leave insert mode@>; @+break;
+	case GKEsc: @<Repeat insert |cins-1| times; leave insert mode@>; @+break;
 	case GKBackspace:
 		if (nins > 0) {
 			eb_del(eb, curwin->cu-1, curwin->cu);
@@ -282,10 +282,10 @@ static void insert(Rune r)
 assert(cins != 0);
 while (--cins)
 	for (unsigned cnt=nins; cnt--;) {
-		r = buf_get(&eb->b, cuwin->cu - nins);
+		r = buf_get(&eb->b, curwin->cu - nins);
 		eb_ins(eb, curwin->cu++, r);
 	}
-if (buf_get(&eb->b, cuwin->cu-1) != '\n') curwin->cu--;
+if (buf_get(&eb->b, curwin->cu-1) != '\n') curwin->cu--;
 mode = Command
 
 @* Index.
