@@ -181,6 +181,8 @@ gotarg:
 		assert(pcmd == &c);
 		pcmd = &m; @+break;
 	}
+	if (pcmd == &m && !(keys[pcmd->chr].flags & CIsMotion))
+		goto err;
 	docmd(buf, c, m);
 	@<Reset parsing state@>;
 }
@@ -352,9 +354,11 @@ static int m_hl(Cmd c, Motion *m)
 	int line, col;
 	buf_getlc(curb, m->beg, &line, &col);
 	if (c.chr == 'h') {
+		if (col == 0) return 1;
 		m->mov = buf_setlc(curb, line, col - c.count);
 		m->end = m->beg, m->beg = m->mov;
 	} else {
+		if (buf_get(curb, m->beg) == '\n') return 1;
 		m->mov = buf_setlc(curb, line, col + c.count);
 		m->end = m->mov, m->beg = curwin->cu;
 		if (buf_get(curb, m->beg+1) == '\n') {
@@ -365,7 +369,9 @@ static int m_hl(Cmd c, Motion *m)
 	return 0;
 }
 
-@ @<Subr...@>=
+@ Be careful to signal an error if the motion is out of bounds.
+
+@<Subr...@>=
 static int m_jk(Cmd c, Motion *m)
 {
 	int line, col;
@@ -373,15 +379,26 @@ static int m_jk(Cmd c, Motion *m)
 	if (c.chr == 'j') {
 		m->mov = buf_setlc(curb, line + c.count, col);
 		m->beg = buf_bol(curb, curwin->cu);
-		m->end = buf_eol(curb, m->mov) + 1;
+		m->end = buf_eol(curb, m->mov);
 	} else {
 		if (c.count > line) return 1;
 		m->mov = buf_setlc(curb, line - c.count, col);
-		m->end = buf_eol(curb, m->beg) + 1;
+		m->end = buf_eol(curb, m->beg);
 		m->beg = buf_bol(curb, m->mov);
 	}
 	m->flags |= MLinewise;
 	return 0;
 }
+
+
+@* Key definitions for motions.
+
+@ @<Other key fields@>=
+int @[@] (*motion)(Cmd, Motion *);
+
+@ @<Key def...@>=
+['h'] = {CIsMotion, m_hl }, ['l'] = {CIsMotion, m_hl},@/
+['j'] = {CIsMotion, m_jk }, ['k'] = {CIsMotion, m_jk},
+
 
 @** Index.
