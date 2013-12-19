@@ -223,15 +223,15 @@ static int keys[128] = {@/
 };
 
 @* Execution of the parsed commands.  Two major kind of commands must
-be considered here: {\it destructive} commands and {\it motion} commands.
+be considered here: {\sl destructive} commands and {\sl motion} commands.
 Motion commands can be used as parameters for destructive commands,
 they almost always have two semantics, one when they are used bare
 to move the cursor and one when they are used as parameter.  Destructive
 commands often accept a buffer parameter to store the deleted text.
-If no buffer is explicitely specified, a {\it numeric} buffer is used
+If no buffer is explicitely specified, a {\sl numeric} buffer is used
 instead.
 
-Buffers can be in two modes: {\it character} mode and {\it text}
+Buffers can be in two modes: {\sl character} mode and {\sl text}
 mode.  This distinction entails a semantic difference when the text is
 copied from buffers.  If the buffer is in line mode, atomic elements of
 the document are lines, thus, a copy will affect only entire lines.  If the
