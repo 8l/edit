@@ -278,7 +278,11 @@ static void insert(Rune r)
 	}
 }
 
-@ @<Repeat insert...@>=
+@ When we are about to switch from insertion to command mode, we mark the
+buffer as being in a clean state by committing it.  This will add the finished
+insertion into the modification log used to undo changes.
+
+@<Repeat insert...@>=
 assert(cins != 0);
 while (--cins)
 	for (unsigned cnt=nins; cnt--;) {
@@ -286,6 +290,6 @@ while (--cins)
 		eb_ins(eb, curwin->cu++, r);
 	}
 if (buf_get(&eb->b, curwin->cu-1) != '\n') curwin->cu--;
-mode = Command
+eb_commit(eb), mode = Command;
 
 @* Index.
