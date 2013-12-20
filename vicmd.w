@@ -369,7 +369,7 @@ static int m_hl(Cmd c, Motion *m)
 	return 0;
 }
 
-@ Be careful to signal an error if the motion is out of bounds.
+@ Be careful to signal an error if the motion hits the top of the buffer.
 
 @<Subr...@>=
 static int m_jk(Cmd c, Motion *m)
@@ -397,8 +397,8 @@ static int m_jk(Cmd c, Motion *m)
 int @[@] (*motion)(Cmd, Motion *);
 
 @ @<Key def...@>=
-['h'] = {CIsMotion, m_hl }, ['l'] = {CIsMotion, m_hl},@/
-['j'] = {CIsMotion, m_jk }, ['k'] = {CIsMotion, m_jk},
+['h'] = {CIsMotion, m_hl}, ['l'] = {CIsMotion, m_hl},@/
+['j'] = {CIsMotion, m_jk}, ['k'] = {CIsMotion, m_jk},
 
 
 @** Index.
