@@ -214,8 +214,9 @@ command name.  We also need to change the state back to |BufferDQuote|.
 
 @ The |keys| table contains a set of flags used to specify the proper
 parsing and interpretation of each \.{vi} command.  It also contains
-a description of the action to do that we postpone for later. The \.{vi}
-commands are \ASCII\ characters so the table only needs 128 entries.
+a description of the action to take, we postpone its definition for
+later. Since the \.{vi} commands are \ASCII\ characters so the table
+only needs 128 entries.
 
 @d CIsDouble 1 /* is the command a double character command */
 @d CHasArg 2 /* is the command expecting an argument */
@@ -299,99 +300,129 @@ eb_commit(eb), mode = Command;
 @* Motion commands. They can be used as parameters for destructive commands,
 they almost always have two semantics, one when they are used bare
 to move the cursor and one when they are used as parameter.  All motion
-commands defined below will return 0 if they succeed and 1 if they fail.
+commands implemented below will return 0 if they succeed and 1 if they fail.
 
-Because of the different behaviors a motion command can have, we use a
-structure to store the motion action that has both the beginning and end
-of the region affected, and the final cursor position if used bare.
+%
+% TODO Fix the vocabulary issues, motion command/parameter, etc...
+%      Hint, fit to posix
+%
 
-We also need a field of flags
+The motion functions defined take as argument an integer that specifies
+if they are called as motion parameters or not.  Depending on this argument
+the \Cee\ structure describing the motion to perform will be filled
+differently.  If called as a motion parameter, the |beg| and |end| fields
+will contain the region defined by the motion; otherwise, only the |end|
+field will be relevant and it will store the final cursor position.  If the
+function returns 1, the motion structure should not be used.
 
-\yskip\bull |MLinewise| is set if the motion operates on full lines or on characters.
+The structure also contains the following set of flags.
+
+\yskip\bull |linewise| indicates if the motion operates on full lines or on characters.
 	At first sight this is more related to the motion command
 	than the motion result, so it should be in |keys| rather than in
 	this structure.  But this would not be precise enough: The standard mandates
 	that certain commands, depending on the invocation context, give linewise or
 	character wise motions.  This is for instance the case for \.\}.
-\bull |MError| is set to indicate if the command must signal an error
-	when called to move the cursor.  This is used, for instance, when executing
-	\.l at the end of a line.  Even if this flag is set, the contents of the
-	motion structure should make sense, to the contrary of what happens when
-	1 is returned by the motion command.
 
-\yskip\noindent When a motion command is called, |mbeg| is set to the current cursor
-postion and |mflags == 0|.
-
-@d MLinewise 1
-@d MError 2
+\yskip\noindent When a motion command is called, |beg| is set to the current cursor
+postion and flags are zeroed.
 
 @<Local typ...@>=
 typedef struct {
 	unsigned beg, end;
-	unsigned mov;
-	int flags;
+	int linewise : 1;
 } Motion;
 
 @ The most elementary cursor motions in \.{vi} are \.h \.j \.k and \.l.
 We must note that the \.{POSIX} specification mandates a subtle difference
 of behaviors between vertical and horizontal motions.  When a count
 is specified, the horizontal motion must succeed even if the count is
-too big while vertical motions must fail in this corner case.  In this
-implementation files do not have ends, so a vertical motion towards the
-end of the buffer will always succeed.
+too big while vertical motions must fail in this case.  In this
+implementation files do not end, so a vertical motion towards the end of
+the buffer will always succeed.
 
 @d curb (&curwin->eb->b)
-@f line x /* do not make line a keyword */
+@d swap(p0, p1) { unsigned _tmp = p0; p0 = p1, p1 = _tmp; }
+@f line x /* use line as a regular identifier */
 
 @<Predecl...@>=
-static int m_hl(Cmd, Motion *);
-static int m_jk(Cmd, Motion *);
+static int m_hl(int, Cmd, Motion *);
+static int m_jk(int, Cmd, Motion *);
 
-@ @<Subr...@>=
-static int m_hl(Cmd c, Motion *m)
+@ One special case need to be handled for \.l here: If the cursor is
+on the last column of the line and the command is called as a motion
+command, the range selected is the last character of the line; however
+if the command is not called as a motion command we must signal an
+error.  This funny behavior contributes to make me think that \.{vi}'s
+language is not as algebraic as it might appear at first and maybe
+needs some revamp.
+
+@<Subr...@>=
+static int m_hl(int ismotion, Cmd c, Motion *m)
 {
 	int line, col;
 	buf_getlc(curb, m->beg, &line, &col);
 	if (c.chr == 'h') {
 		if (col == 0) return 1;
-		m->mov = buf_setlc(curb, line, col - c.count);
-		m->end = m->beg; @+m->beg = m->mov;
+		m->end = buf_setlc(curb, line, col - c.count);
+		if (ismotion) swap(m->beg, m->end);
 	} else {
 		if (buf_get(curb, m->beg) == '\n') return 1;
-		m->mov = buf_setlc(curb, line, col + c.count);
-		m->end = m->mov; @+m->beg = curwin->cu;
-		if (buf_get(curb, m->beg+1) == '\n') {
-			m->mov = m->beg;
-			m->flags |= MError;
-		}
+		m->end = buf_setlc(curb, line, col + c.count);
+		if (!ismotion && buf_get(curb, m->end) == '\n') return 1;
 	}
 	return 0;
 }
 
-@ Be careful to signal an error if the motion hits the top of the buffer.
+@ For vertical motions, be careful to signal an error if the motion hits
+the top of the buffer.
 
 @<Subr...@>=
-static int m_jk(Cmd c, Motion *m)
+static int m_jk(int ismotion, Cmd c, Motion *m)
 {
 	int line, col;
 	buf_getlc(curb, m->beg, &line, &col);
-	if (c.chr == 'j') {
-		m->mov = buf_setlc(curb, line + c.count, col);
-		m->beg = buf_bol(curb, m->beg); @+m->end = buf_eol(curb, m->mov);
-	} else {
+	if (c.chr == 'k') {
 		if (c.count > line) return 1;
-		m->mov = buf_setlc(curb, line - c.count, col);
-		m->end = buf_eol(curb, m->beg); @+m->beg = buf_bol(curb, m->mov);
+		m->end = buf_setlc(curb, line - c.count, col);
+	} else
+		m->end = buf_setlc(curb, line + c.count, col);
+	if (ismotion) {
+		if (c.chr == 'k') swap(m->beg, m->end);
+		m->beg = buf_bol(curb, m->beg);
+		m->end = buf_eol(curb, m->end);
 	}
-	m->flags |= MLinewise;
+	m->linewise = 1;
 	return 0;
 }
+
+@*1 Hacking the motion commands. Here is a short list of things you
+want to know if you start hacking either the motion commands, or any
+function used to implement them.  As you might have noted, we rely a
+lot on functions in the |buf_| family.  Here is a tentatively complete
+list of invariants the code relies on.
+
+\yskip\bull Functions on buffers must be robust to funny arguments.  For
+	instance in |m_hl| we rely on the fact that giving a negative
+	column as argument to |buf_setlc| is valid and returns the offset
+	of the first column in the buffer.  Dually, if the column count
+	is too big we must get into the last column which is the one
+	containing the newline character |'\n'|.
+
+\bull Lines and columns are 0 indexed.
+
+\bull All lines end in |'\n'|.  This must be guaranteed by the buffer
+	implementation.
+
+\bull Files do not end.  There is an (almost) infinite amount of newline
+	characters at the end.  This part is obviously not stored in
+	memory, it is called {\sl limbo}.
 
 
 @* Key definitions for motions.
 
 @ @<Other key fields@>=
-int @[@] (*motion)(Cmd, Motion *);
+int @[@] (*motion)(int, Cmd, Motion *);
 
 @ @<Key def...@>=
 ['h'] = {CIsMotion, m_hl}, ['l'] = {CIsMotion, m_hl},@/
