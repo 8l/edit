@@ -247,6 +247,8 @@ for setting the buffer mode.
 @ The commands act on the active window.  This window is accessible
 via a global program variable.
 
+@d curb (&curwin->eb->b) /* convenient alias for the current buffer */
+
 @<External...@>=
 extern W *curwin;
 
@@ -341,7 +343,6 @@ too big while vertical motions must fail in this case.  In this
 implementation files do not end, so a vertical motion towards the end of
 the buffer will always succeed.
 
-@d curb (&curwin->eb->b)
 @d swap(p0, p1) { unsigned _tmp = p0; p0 = p1, p1 = _tmp; }
 @f line x /* use line as a regular identifier */
 
