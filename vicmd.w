@@ -340,8 +340,7 @@ too big while vertical motions must fail in this corner case.  In this
 implementation files do not have ends, so a vertical motion towards the
 end of the buffer will always succeed.
 
-@d cureb (curwin->eb)
-@d curb (&cureb->b)
+@d curb (&curwin->eb->b)
 @f line x /* do not make line a keyword */
 
 @<Predecl...@>=
@@ -356,11 +355,11 @@ static int m_hl(Cmd c, Motion *m)
 	if (c.chr == 'h') {
 		if (col == 0) return 1;
 		m->mov = buf_setlc(curb, line, col - c.count);
-		m->end = m->beg, m->beg = m->mov;
+		m->end = m->beg; @+m->beg = m->mov;
 	} else {
 		if (buf_get(curb, m->beg) == '\n') return 1;
 		m->mov = buf_setlc(curb, line, col + c.count);
-		m->end = m->mov, m->beg = curwin->cu;
+		m->end = m->mov; @+m->beg = curwin->cu;
 		if (buf_get(curb, m->beg+1) == '\n') {
 			m->mov = m->beg;
 			m->flags |= MError;
@@ -378,13 +377,11 @@ static int m_jk(Cmd c, Motion *m)
 	buf_getlc(curb, m->beg, &line, &col);
 	if (c.chr == 'j') {
 		m->mov = buf_setlc(curb, line + c.count, col);
-		m->beg = buf_bol(curb, curwin->cu);
-		m->end = buf_eol(curb, m->mov);
+		m->beg = buf_bol(curb, m->beg); @+m->end = buf_eol(curb, m->mov);
 	} else {
 		if (c.count > line) return 1;
 		m->mov = buf_setlc(curb, line - c.count, col);
-		m->end = buf_eol(curb, m->beg);
-		m->beg = buf_bol(curb, m->mov);
+		m->end = buf_eol(curb, m->beg); @+m->beg = buf_bol(curb, m->mov);
 	}
 	m->flags |= MLinewise;
 	return 0;
