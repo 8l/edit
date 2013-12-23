@@ -22,6 +22,7 @@ buf_init(Buf *b)
 	assert(b);
 	b->p = newpage();
 	b->last = 0;
+	b->limbo = 0;
 }
 
 /* buf_del - Delete rune after position [pos].
@@ -30,6 +31,7 @@ void
 buf_del(Buf *b, unsigned pos)
 {
 	del(b, pos);
+	b->limbo--;
 }
 
 /* buf_ins - Insert rune [r] at position [pos].
@@ -38,6 +40,7 @@ void
 buf_ins(Buf *b, unsigned pos, Rune r)
 {
 	ins(b, pos, r);
+	b->limbo++;
 }
 
 Rune

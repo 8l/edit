@@ -24,6 +24,7 @@ struct buf {
 	Page *p;
 	Page *last;
 	unsigned lastbeg;
+	unsigned limbo;
 };
 
 void buf_init(Buf *);
