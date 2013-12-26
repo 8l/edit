@@ -443,7 +443,7 @@ static int m_ewEW(int, Cmd, Motion *);
 static int m_ewEW(int ismotion, Cmd c, Motion *m)
 {
 	int @[@] (*in)(Rune) = islower(c.chr) ? risword : risbigword;
-	int dfa[][2] = { {1, 0}, {1, 2} }, ise = tolower(c.chr) == 'e';
+	int dfa[][2] = {{1, 0}, {1, 2}}, ise = tolower(c.chr) == 'e';
 	unsigned p = m->beg;
 
 	while (c.count--) {
@@ -451,7 +451,8 @@ static int m_ewEW(int ismotion, Cmd c, Motion *m)
 			int s = 0;
 			s != 2;
 			s = dfa[s][ise ^ in(buf_get(curb, ise + p++))]
-		);
+		)
+			if (p >= curb->limbo) break;
 	}
 	m->end = ismotion ? p : p-1;
 	return 0;
