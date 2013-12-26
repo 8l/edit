@@ -350,13 +350,13 @@ the buffer will always succeed.
 static int m_hl(int, Cmd, Motion *);
 static int m_jk(int, Cmd, Motion *);
 
-@ One special case need to be handled for \.l here: If the cursor is
+@ One special case needs to be handled for \.l here: If the cursor is
 on the last column of the line and the command is called as a motion
 command, the range selected is the last character of the line; however
 if the command is not called as a motion command we must signal an
-error.  This funny behavior contributes to make me think that \.{vi}'s
-language is not as algebraic as it might appear at first and maybe
-needs some revamp.
+error.  This funny behavior contributes to what makes me think that
+\.{vi}'s language is not as algebraic as it might appear at first
+and maybe needs some revamp.
 
 @<Subr...@>=
 static int m_hl(int ismotion, Cmd c, Motion *m)
@@ -397,11 +397,69 @@ static int m_jk(int ismotion, Cmd c, Motion *m)
 	return 0;
 }
 
+@ Next, we implement word motions.  They can act on {\sl big} or
+{\it small} words.  Small words are sequences composed of alphanumeric
+characters and the underscore character \_.  Big words characters
+are anyting which is not a space.  We will need two predicate functions
+to recognize these two classes of characters.
+
+@<Subr...@>=
+static int risword(Rune r)
+{
+	return (risascii(r) && isalpha(r)) /* \ASCII\ alpha */
+	    || (r >= 0xc0 && r < 0x100) /* attempt to detect
+	                                   latin characters */
+	    || (r >= '0' && r <= '9')
+	    || r == '_';
+}
+
+static int risbigword(Rune r)
+{
+	return !risascii(r) || !isspace(r);
+}
+
+@ Word motions involve some kind of light parsing.  Since the buffer
+implementation exposes infinite buffers we have to take care of
+not getting into a loop when going towards the end of the buffer.
+To do this we rely on the |limbo| field of the \Cee\ buffer structure.
+This field contains the offset at which limbo begins, if we get past
+this offset during parsing we know we are heading straight to hell
+and should stop reading input.
+
+We use the following regular expression to factor the code for the four
+forward word motion commands.  In the figure, $in$ matches a rune
+accepted by one of the predicates above and $\neg in$ a rune not accepted.
+$$
+\vbox{\halign{#\cr
+\.w: $in^*; (\neg in)^*; in$ \cr
+\.e: $(\neg in)^*; in^*; \neg in$ \cr
+}}
+$$
+
+@<Predecl...@>=
+static int m_ewEW(int, Cmd, Motion *);
+
+@ @<Subr...@>=
+static int m_ewEW(int ismotion, Cmd c, Motion *m)
+{
+	int @[@] (*in)(Rune) = islower(c.chr) ? risword : risbigword;
+	int dfa[][2] = { {1, 0}, {1, 2} }, ise = tolower(c.chr) == 'e';
+	unsigned p = m->beg;
+
+	while (c.count--) {
+		for (
+			int s = 0;
+			s != 2;
+			s = dfa[s][ise ^ in(buf_get(curb, ise + p++))]
+		);
+	}
+	m->end = ismotion ? p : p-1;
+	return 0;
+}
+
 @*1 Hacking the motion commands. Here is a short list of things you
 want to know if you start hacking either the motion commands, or any
-function used to implement them.  As you might have noted, we rely a
-lot on functions in the |buf_| family.  Here is a tentatively complete
-list of invariants the code relies on.
+function used to implement them.
 
 \yskip\bull Functions on buffers must be robust to funny arguments.  For
 	instance in |m_hl| we rely on the fact that giving a negative
@@ -417,7 +475,8 @@ list of invariants the code relies on.
 
 \bull Files do not end.  There is an (almost) infinite amount of newline
 	characters at the end.  This part is obviously not stored in
-	memory, it is called {\sl limbo}.
+	memory, it is called {\sl limbo}.  Deletions in limbo must work
+	and do nothing.
 
 
 @* Key definitions for motions.
@@ -427,7 +486,31 @@ int @[@] (*motion)(int, Cmd, Motion *);
 
 @ @<Key def...@>=
 ['h'] = {CIsMotion, m_hl}, ['l'] = {CIsMotion, m_hl},@/
-['j'] = {CIsMotion, m_jk}, ['k'] = {CIsMotion, m_jk},
+['j'] = {CIsMotion, m_jk}, ['k'] = {CIsMotion, m_jk},@/
+['w'] = {CIsMotion, m_ewEW}, ['W'] = {CIsMotion, m_ewEW},@/
+['e'] = {CIsMotion, m_ewEW}, ['E'] = {CIsMotion, m_ewEW},
 
+@ @<Subr...@>=
+static void docmd(char buf, Cmd c, Cmd m)
+{
+	if (c.count == 0)
+		c.count = 1;
+
+	if (c.chr == 'i') {
+		nins = 0, cins = c.count;
+		mode = Insert;
+		return;
+	}
+	if (c.chr == 'q'-'a' + 1) {
+		extern int exiting;
+		exiting = 1;
+		return;
+	}
+	if (keys[c.chr].flags & CIsMotion) {
+		Motion m = {.beg = curwin->cu, .end = 0};
+		if (keys[c.chr].motion(0, c, &m) == 0)
+			curwin->cu = m.end;
+	}
+}
 
 @** Index.
