@@ -426,15 +426,20 @@ This field contains the offset at which limbo begins, if we get past
 this offset during parsing we know we are heading straight to hell
 and should stop reading input.
 
-We use the following regular expression to factor the code for the four
-forward word motion commands.  In the figure, $in$ matches a rune
-accepted by one of the predicates above and $\neg in$ a rune not accepted.
+We use the following regular grammars to factor the code for the four
+forward word motion commands.
 $$
-\vbox{\halign{#\cr
-\.w: $in^*; (\neg in)^*; in$ \cr
-\.e: $(\neg in)^*; in^*; \neg in$ \cr
+\vbox{\halign{\hfil#: &# \cr
+\.w / \.W& $in^*; (\neg in)^*; in$ \cr
+\.e / \.E& $(\neg in)^*; in^*; \neg in$ \cr
 }}
 $$
+In the above figure, $in$ matches a big or small word rune (depending
+on the command we implement).  The second grammar matches one rune
+past the end of the next word.  I compiled these two grammars in
+a deterministic automaton.  Since we can map one of the above regular
+grammar on the other by mapping $in$ to $\neg in$, we only need on
+automaton which is defined in the |dfa| local variable.
 
 @<Predecl...@>=
 static int m_ewEW(int, Cmd, Motion *);
@@ -508,7 +513,7 @@ static void docmd(char buf, Cmd c, Cmd m)
 		return;
 	}
 	if (keys[c.chr].flags & CIsMotion) {
-		Motion m = {.beg = curwin->cu, .end = 0};
+		Motion m = {curwin->cu, 0};
 		if (keys[c.chr].motion(0, c, &m) == 0)
 			curwin->cu = m.end;
 	}
