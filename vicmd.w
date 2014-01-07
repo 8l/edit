@@ -485,6 +485,62 @@ static int m_bB(int ismotion, Cmd c, Motion *m)
 	return 0;
 }
 
+@ Paragraph motions \.\{ and \.\} are implemented next.  We recognize
+consecutive blank lines and form feed characters as paragraph
+separators.  Special care must be taken when these commands are used
+as motion commands because they can be linewise or not: If the cursor
+is at the beginning of a line on a blank character the motion is
+linewise, otherwise it is not.
+
+I will ignore all legacy features related to \.{nroff} editing since,
+today, I prefer \TeX\ over it.  If you desperately need them, they are
+easy to hack in.
+
+@d risblank(r) (risascii(r) && isblank(r))
+
+@<Subr...@>=
+static unsigned blkspn(unsigned p)
+{
+	Rune r;
+	do r = buf_get(curb, p++); while (risblank(r));
+	return p-1;
+}
+
+@ @<Subr...@>=
+static int m_par(int ismotion, Cmd c, Motion *m)
+{
+	int l, x, dl = c.chr == '{' ? -1 : 1;
+	enum {@+InBlank, InText@+} state;
+	unsigned bol, fst;
+	Rune r;
+
+	buf_getlc(curb, m->beg, &l, &x);
+
+	bol = buf_bol(curb, m->beg);
+	if ((fst = blkspn(bol)) >= m->beg) {
+		m->beg = bol;
+		m->linewise = 1;
+	}
+	state = buf_get(curb, fst) == '\n' ? InBlank : InText;
+
+	for (;;) {
+		if ((l+=dl) < 0) break;
+		if ((bol = buf_setlc(curb, l, 0)) >= curb->limbo) break;
+		fst = blkspn(bol);
+		if ((r = buf_get(curb, fst)) == '\n' || r == '\f') {
+			if ((state == InText || r == '\f') && !--c.count) break;
+			state = r == '\n' ? InBlank : InText;
+		} else state = InText;
+	}
+
+	m->end = bol;
+	if (ismotion && c.chr == '{') swap(m->beg, m->end);
+	return 0;
+}
+
+@ @<Predecl...@>=
+static int m_par(int, Cmd, Motion *);
+
 @*1 Hacking the motion commands. Here is a short list of things you
 want to know if you start hacking either the motion commands, or any
 function used to implement them.
@@ -517,7 +573,8 @@ int @[@] (*motion)(int, Cmd, Motion *);
 ['j'] = {CIsMotion, m_jk}, ['k'] = {CIsMotion, m_jk},@/
 ['w'] = {CIsMotion, m_ewEW}, ['W'] = {CIsMotion, m_ewEW},@/
 ['e'] = {CIsMotion, m_ewEW}, ['E'] = {CIsMotion, m_ewEW},@/
-['b'] = {CIsMotion, m_bB}, ['B'] = {CIsMotion, m_bB},
+['b'] = {CIsMotion, m_bB}, ['B'] = {CIsMotion, m_bB},@/
+['{'] = {CIsMotion, m_par}, ['}'] = {CIsMotion, m_par},
 
 @ @<Subr...@>=
 static void docmd(char buf, Cmd c, Cmd m)
