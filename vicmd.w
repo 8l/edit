@@ -524,13 +524,13 @@ static int m_par(int ismotion, Cmd c, Motion *m)
 	state = buf_get(curb, fst) == '\n' ? InBlank : InText;
 
 	for (;;) {
-		if ((l+=dl) < 0) break;
-		if ((bol = buf_setlc(curb, l, 0)) >= curb->limbo) break;
-		fst = blkspn(bol);
-		if ((r = buf_get(curb, fst)) == '\n' || r == '\f') {
-			if ((state == InText || r == '\f') && !--c.count) break;
-			state = r == '\n' ? InBlank : InText;
-		} else state = InText;
+		if ((l+=dl) < 0
+		|| (bol = buf_setlc(curb, l, 0)) >= curb->limbo)
+			break;
+		if (((r = buf_get(curb, blkspn(bol))) == '\n' && state == InText)
+		|| r == '\f')
+			if (!--c.count) break;
+		state = r == '\n' ? InBlank : InText;
 	}
 
 	m->end = bol;
