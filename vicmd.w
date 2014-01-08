@@ -511,25 +511,17 @@ static int m_par(int ismotion, Cmd c, Motion *m)
 {
 	int l, x, dl = c.chr == '{' ? -1 : 1;
 	enum {@+InBlank, InText@+} state;
-	unsigned bol, fst;
-	Rune r;
+	unsigned bol = buf_bol(curb, m->beg);
 
+	@<Initialize |state| and detect if the motion is linewise@>;
 	buf_getlc(curb, m->beg, &l, &x);
-
-	bol = buf_bol(curb, m->beg);
-	if ((fst = blkspn(bol)) >= m->beg) {
-		m->beg = bol;
-		m->linewise = 1;
-	}
-	state = buf_get(curb, fst) == '\n' ? InBlank : InText;
-
-	for (;;) {
+	for (Rune r;;) {
 		if ((l+=dl) < 0
 		|| (bol = buf_setlc(curb, l, 0)) >= curb->limbo)
 			break;
-		if (((r = buf_get(curb, blkspn(bol))) == '\n' && state == InText)
-		|| r == '\f')
-			if (!--c.count) break;
+		r = buf_get(curb, blkspn(bol));
+		if (((r == '\n' && state == InText) || r == '\f') && !--c.count)
+			break;
 		state = r == '\n' ? InBlank : InText;
 	}
 
@@ -537,6 +529,26 @@ static int m_par(int ismotion, Cmd c, Motion *m)
 	if (ismotion && c.chr == '{') swap(m->beg, m->end);
 	return 0;
 }
+
+@ The paragraph motion is linewise when the cursor is at or before the
+first non-blank rune of the line.  In this case, we change |m->beg| to
+point to the very first character (blank or not) of the line so the
+motion command acts on full lines.  This behavior conforms to Keith
+Bostic's \.{nvi} for the forward paragraph motion but differs for the
+backward motion.  I feel like the difference made little sense and
+unified the two.
+
+Detecting the state we are initially in is easy, we just need to know
+if the current line is blank or not, that is, if the end of the blank
+span is a newline or not.
+
+@<Initialize |state| and detect if the motion is linewise@>=
+{
+	unsigned fst = blkspn(bol);
+	if (fst >= m->beg) m->beg = bol, m->linewise = 1;
+	state = buf_get(curb, fst) == '\n' ? InBlank : InText;
+}
+
 
 @ @<Predecl...@>=
 static int m_par(int, Cmd, Motion *);
