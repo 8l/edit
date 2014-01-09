@@ -517,7 +517,7 @@ static int m_par(int ismotion, Cmd c, Motion *m)
 	enum {@+Blank, FormFeed, Text@+} ltyp;
 	int s, dfa[][3] = {
 		{ 0, 3, 3 },
-		{ 2, 1, 3 },
+		{ 2, 2, 3 },
 		{ 2, 9, 3 },
 		{ 9, 9, 3 }
 	};
