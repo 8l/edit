@@ -335,6 +335,20 @@ typedef struct {
 	int linewise : 1;
 } Motion;
 
+@ Motion commands often need to skip blanks, for instance, to find the first
+non blank character of a line.  The following function will be of great help
+with this.  It finds the end of a blank span starting at position |p|.
+
+@d risblank(r) (risascii(r) && isblank(r))
+
+@<Subr...@>=
+static unsigned blkspn(unsigned p)
+{
+	Rune r;
+	do r = buf_get(curb, p++); while (risblank(r));
+	return p-1;
+}
+
 @ The most elementary cursor motions in \.{vi} are \.h \.j \.k and \.l.
 We must note that the \.{POSIX} specification mandates a subtle difference
 of behaviors between vertical and horizontal motions.  When a count
@@ -496,41 +510,54 @@ I will ignore all legacy features related to \.{nroff} editing since,
 today, I prefer \TeX\ over it.  If you desperately need them, they are
 easy to hack in.
 
-@d risblank(r) (risascii(r) && isblank(r))
-
 @<Subr...@>=
-static unsigned blkspn(unsigned p)
-{
-	Rune r;
-	do r = buf_get(curb, p++); while (risblank(r));
-	return p-1;
-}
-
-@ @<Subr...@>=
 static int m_par(int ismotion, Cmd c, Motion *m)
 {
 	int l, x, dl = c.chr == '{' ? -1 : 1;
-	enum {@+InBlank, InText@+} state;
-	unsigned bol = buf_bol(curb, m->beg);
+	enum {@+Blank, FormFeed, Text@+} ltyp;
+	int s, dfa[][3] = {
+		{ 0, 3, 3 },
+		{ 2, 1, 3 },
+		{ 2, 9, 3 },
+		{ 9, 9, 3 }
+	};
+	unsigned bol;
 
-	@<Initialize |state| and detect if the motion is linewise@>;
 	buf_getlc(curb, m->beg, &l, &x);
-	for (Rune r;;) {
-		if ((l+=dl) < 0
-		|| (bol = buf_setlc(curb, l, 0)) >= curb->limbo)
-			break;
-		r = buf_get(curb, blkspn(bol));
-		if (((r == '\n' && state == InText) || r == '\f') && !--c.count)
-			break;
-		state = r == '\n' ? InBlank : InText;
-	}
+	bol = buf_bol(curb, m->beg);
+	@<Detect if paragraph motion is linewise@>;
+
+	while (c.count--)
+		for (
+			s = c.chr == '{';
+			l >= 0 && (bol < curb->limbo || c.chr == '{');
+		) {
+			@<Set |ltyp| to the line type of the current line@>;
+			@<Update the state |s| and proceed to the next line@>;
+		}
 
 	m->end = bol;
 	if (ismotion && c.chr == '{') swap(m->beg, m->end);
 	return 0;
 }
 
-@ The paragraph motion is linewise when the cursor is at or before the
+@ @<Set |ltyp|...@>=
+switch (buf_get(curb, blkspn(bol))) {
+case '\n': ltyp = Blank;@+break;
+case '\f': ltyp = FormFeed;@+break;
+default: ltyp = Text;@+break;
+}
+
+@ The only critical point when updating the state and moving on to
+the next line is to check if the final state is reached before
+updating |bol|.  Not doing this would make the implementation off
+by one line.
+
+@<Update the state |s| and...@>=
+if ((s = dfa[s][ltyp]) == 9) break;
+l += dl, bol = buf_setlc(curb, l, 0);
+
+@ A paragraph motion is linewise when the cursor is at or before the
 first non-blank rune of the line.  In this case, we change |m->beg| to
 point to the very first character (blank or not) of the line so the
 motion command acts on full lines.  This behavior conforms to Keith
@@ -538,17 +565,11 @@ Bostic's \.{nvi} for the forward paragraph motion but differs for the
 backward motion.  I feel like the difference made little sense and
 unified the two.
 
-Detecting the state we are initially in is easy, we just need to know
-if the current line is blank or not, that is, if the end of the blank
-span is a newline or not.
-
-@<Initialize |state| and detect if the motion is linewise@>=
-{
-	unsigned fst = blkspn(bol);
-	if (fst >= m->beg) m->beg = bol, m->linewise = 1;
-	state = buf_get(curb, fst) == '\n' ? InBlank : InText;
+@<Detect if para...@>=
+if (blkspn(bol) >= m->beg) {
+	m->beg = bol;
+	m->linewise = 1;
 }
-
 
 @ @<Predecl...@>=
 static int m_par(int, Cmd, Motion *);
