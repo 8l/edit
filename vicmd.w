@@ -411,6 +411,34 @@ static int m_jk(int ismotion, Cmd c, Motion *m)
 	return 0;
 }
 
+@ The character lookup motions are also simple to implement.  There
+are four commands of this kind \.t, \.f, \.T and \.F.  Uppercase
+commands search backward, lowercase go forward.
+
+@<Predecl...@>=
+static int m_find(int, Cmd, Motion *);
+
+@ @<Subr...@>=
+static int m_find(int ismotion, Cmd c, Motion *m)
+{
+	int dp = islower(c.chr) ? 1 : -1;
+	unsigned p = m->beg;
+	register Rune r;
+
+	while (c.count--)
+		while ((r = buf_get(curb, p += dp)) != c.arg)
+			/* |buf_get| must return |'\n'| at position |-1u| */
+			if (r == '\n') return 1;
+
+	m->end = tolower(c.chr) == 'f' ? p : p-dp;
+	if (ismotion) {
+		if (dp == 1) m->end++;
+		else swap(m->beg, m->end);
+	}
+	return 0;
+}
+
+
 @ Next, we implement word motions.  They can act on {\sl big} or
 {\it small} words.  Small words are sequences composed of alphanumeric
 characters and the underscore \_ character.  Big words characters
@@ -604,6 +632,8 @@ int @[@] (*motion)(int, Cmd, Motion *);
 @ @<Key def...@>=
 ['h'] = {CIsMotion, m_hl}, ['l'] = {CIsMotion, m_hl},@/
 ['j'] = {CIsMotion, m_jk}, ['k'] = {CIsMotion, m_jk},@/
+['t'] = {CIsMotion|CHasArg, m_find}, ['f'] = {CIsMotion|CHasArg, m_find},@/
+['T'] = {CIsMotion|CHasArg, m_find}, ['F'] = {CIsMotion|CHasArg, m_find},@/
 ['w'] = {CIsMotion, m_ewEW}, ['W'] = {CIsMotion, m_ewEW},@/
 ['e'] = {CIsMotion, m_ewEW}, ['E'] = {CIsMotion, m_ewEW},@/
 ['b'] = {CIsMotion, m_bB}, ['B'] = {CIsMotion, m_bB},@/
