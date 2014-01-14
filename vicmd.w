@@ -448,7 +448,7 @@ static int m_bol(int ismotion, Cmd c, Motion *m)
 	m->end = buf_bol(curb, m->beg);
 	if (c.chr == '^') m->end = blkspn(m->end);
 	if (ismotion && m->end < m->beg) swap(m->beg, m->end);
-	return ismotion && (buf_get(curb, m->end) == '\n' || m->end == m->beg);
+	return ismotion && m->end == m->beg;
 }
  
 @ The semantics of \.\$ are surprisingly complicated, the thing I
