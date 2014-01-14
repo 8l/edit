@@ -411,14 +411,12 @@ static int m_jk(int ismotion, Cmd c, Motion *m)
 	return 0;
 }
 
-@ The character lookup motions are also simple to implement.  There
-are four commands of this kind \.t, \.f, \.T and \.F.  Uppercase
-commands search backward, lowercase go forward.
+@ Another family of useful and easy to implement motions are the line
+oriented motions.  We start by implementing character lookup motions,
+there are four commands of this kind \.t, \.f, \.T and \.F.  Uppercase
+commands search backwards, lowercase run forward.
 
-@<Predecl...@>=
-static int m_find(int, Cmd, Motion *);
-
-@ @<Subr...@>=
+@<Subr...@>=
 static int m_find(int ismotion, Cmd c, Motion *m)
 {
 	int dp = islower(c.chr) ? 1 : -1;
@@ -438,9 +436,49 @@ static int m_find(int ismotion, Cmd c, Motion *m)
 	return 0;
 }
 
+@ The \.{vi} command set provides two commands to move towards the
+beginning of the line: \.0 and \.\^.  The first one will unconditionnaly
+move to the first character of the line while the second one will
+search for the first non blank character in the line.  I implemented
+them in the same function.
+
+@<Subr...@>=
+static int m_bol(int ismotion, Cmd c, Motion *m)
+{
+	m->end = buf_bol(curb, m->beg);
+	if (c.chr == '^') m->end = blkspn(m->end);
+	if (ismotion && m->end < m->beg) swap(m->beg, m->end);
+	return ismotion && (buf_get(curb, m->end) == '\n' || m->end == m->beg);
+}
+ 
+@ The semantics of \.\$ are surprisingly complicated, the thing I
+learned reading \.{POSIX} is that it takes a count allowing to move
+to the end of the $n$-th line after the current one.
+
+@<Subr...@>=
+static int m_eol(int ismotion, Cmd c, Motion  *m)
+{
+	unsigned bol = buf_bol(curb, m->beg);
+	int l, x;
+
+	if (c.count > 1 && blkspn(bol) >= m->beg)
+		m->linewise = 1, m->beg = bol;
+
+	buf_getlc(curb, m->beg, &l, &x);
+	m->end = buf_eol(curb, buf_setlc(curb, l + c.count - 1, 0)) - 1;
+	if (buf_get(curb, m->end) == '\n')
+		m->end++; // the end line was empty
+
+	return ismotion && c.count == 1 && buf_get(curb, bol) == '\n';
+}
+
+@ @<Predecl...@>=
+static int m_find(int, Cmd, Motion *);
+static int m_bol(int, Cmd, Motion *);
+static int m_eol(int, Cmd, Motion *);
 
 @ Next, we implement word motions.  They can act on {\sl big} or
-{\it small} words.  Small words are sequences composed of alphanumeric
+{\sl small} words.  Small words are sequences composed of alphanumeric
 characters and the underscore \_ character.  Big words characters
 are anyting that is not a space.  We will need two predicate functions
 to recognize these two classes of characters.
@@ -634,6 +672,8 @@ int @[@] (*motion)(int, Cmd, Motion *);
 ['j'] = {CIsMotion, m_jk}, ['k'] = {CIsMotion, m_jk},@/
 ['t'] = {CIsMotion|CHasArg, m_find}, ['f'] = {CIsMotion|CHasArg, m_find},@/
 ['T'] = {CIsMotion|CHasArg, m_find}, ['F'] = {CIsMotion|CHasArg, m_find},@/
+['0'] = {CIsMotion, m_bol}, ['^'] = {CIsMotion, m_bol},@/
+['$'] = {CIsMotion, m_eol},@/
 ['w'] = {CIsMotion, m_ewEW}, ['W'] = {CIsMotion, m_ewEW},@/
 ['e'] = {CIsMotion, m_ewEW}, ['E'] = {CIsMotion, m_ewEW},@/
 ['b'] = {CIsMotion, m_bB}, ['B'] = {CIsMotion, m_bB},@/
