@@ -437,10 +437,7 @@ static int m_find(int ismotion, Cmd c, Motion *m)
 }
 
 @ The \.{vi} command set provides two commands to move towards the
-beginning of the line: \.0 and \.\^.  The first one will unconditionnaly
-move to the first character of the line while the second one will
-search for the first non blank character in the line.  I implemented
-them in the same function.
+beginning of the line: \.0 and \.\^.
 
 @<Subr...@>=
 static int m_bol(int ismotion, Cmd c, Motion *m)
@@ -451,9 +448,9 @@ static int m_bol(int ismotion, Cmd c, Motion *m)
 	return ismotion && m->end == m->beg;
 }
  
-@ The semantics of \.\$ are surprisingly complicated, the thing I
-learned reading \.{POSIX} is that it takes a count allowing to move
-to the end of the $n$-th line after the current one.
+@ The \.\$ command moves to the end of line.  This command accepts
+a count argument to move to the end of the $n$-th line after the
+current one.  Note that it can be a linewise motion.
 
 @<Subr...@>=
 static int m_eol(int ismotion, Cmd c, Motion  *m)
@@ -469,7 +466,7 @@ static int m_eol(int ismotion, Cmd c, Motion  *m)
 	if (buf_get(curb, m->end) == '\n')
 		m->end++; // the end line was empty
 
-	return ismotion && c.count == 1 && buf_get(curb, bol) == '\n';
+	return ismotion && c.count == 1 && m->end == m->beg;
 }
 
 @ @<Predecl...@>=
