@@ -437,7 +437,10 @@ static int m_find(int ismotion, Cmd c, Motion *m)
 }
 
 @ The \.{vi} command set provides two commands to move towards the
-beginning of the line: \.0 and \.\^.
+beginning of the line: \.0 and \.\^.  The latter moves to the first
+non-blank character in the line while the former will move in the
+first column, both commands do not accept a count and fail if used
+as motion commands and do not move the cursor.
 
 @<Subr...@>=
 static int m_bol(int ismotion, Cmd c, Motion *m)
@@ -450,7 +453,8 @@ static int m_bol(int ismotion, Cmd c, Motion *m)
  
 @ The \.\$ command moves to the end of line.  This command accepts
 a count argument to move to the end of the $n$-th line after the
-current one.  Note that it can be a linewise motion.
+current one.  Note that it can be a linewise motion depending on
+the initial cursor position.
 
 @<Subr...@>=
 static int m_eol(int ismotion, Cmd c, Motion  *m)
@@ -653,6 +657,11 @@ function used to implement them.
 \bull All lines end in |'\n'|.  This must be guaranteed by the buffer
 	implementation.
 
+\bull Functions dealing with lines (|buf_bol|, |buf_eol|, ...) must count
+	the trailing |'\n'| as part of the line. So, by the previous point,
+	an empty line consists only of a newline character which marks its
+	end.
+
 \bull Files do not end.  There is an (almost) infinite amount of newline
 	characters at the end.  This part is obviously not stored in
 	memory, it is called {\sl limbo}.  Deletions in limbo must work
@@ -682,7 +691,9 @@ static void docmd(char buf, Cmd c, Cmd m)
 	if (c.count == 0)
 		c.count = 1;
 
-	if (c.chr == 'i') {
+	if (c.chr == 'i' || c.chr == 'a') {
+		if (c.chr == 'a' && curwin->cu != buf_eol(curb, curwin->cu))
+			curwin->cu++;
 		nins = 0, cins = c.count;
 		mode = Insert;
 		return;
