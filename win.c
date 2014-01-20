@@ -453,7 +453,7 @@ int main()
 			if (e.key == 'l' || e.key == 'h')
 			if (w->cu < w->start || w->cu >= w->stop) {
 				win_show_cursor(w, cloc);
-				win_redraw_frame();
+				win_redraw(w);
 			}
 
 		}
