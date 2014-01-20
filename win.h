@@ -22,7 +22,7 @@ struct w {
 	GWin *gw;              /* graphical window associated */
 };
 
-enum CursorLoc { CTop, CBot };
+enum CursorLoc { CTop, CMid, CBot };
 
 void win_init(struct gui *g);
 W *win_new(EBuf *eb);

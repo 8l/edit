@@ -199,6 +199,8 @@ win_show_cursor(W *w, enum CursorLoc where)
 	w->start = li.sl[(li.beg + li.len-2) % RingSize];
 	if (where == CBot)
 		win_scroll(w, -w->height/font.height + 1);
+	else if (where == CMid)
+		win_scroll(w, -w->height/font.height/2);
 }
 
 /* static functions */
@@ -444,6 +446,7 @@ int main()
 			case 'y'-'a' + 1: win_scroll(w, -1); break;
 			case '+': if (w->hrig < 25000) w->hrig += 1 + w->hrig/10; break;
 			case '-': if (w->hrig > 10) w->hrig -= 1 + w->hrig/10; break;
+			case 'l'-'a'+1: win_show_cursor(w, CMid); break;
 			default: continue;
 			}
 			win_redraw_frame();
