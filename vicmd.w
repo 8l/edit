@@ -575,7 +575,7 @@ linewise, otherwise it is not.
 
 I will ignore all legacy features related to \.{nroff} editing since,
 today, I prefer \TeX\ over it.  If you desperately need them, they are
-easy to hack in.
+easy to hack in (just treat them as form feeds).
 
 @<Subr...@>=
 static int m_par(int ismotion, Cmd c, Motion *m)
@@ -671,19 +671,24 @@ function used to implement them.
 @* Key definitions for motions.
 
 @ @<Other key fields@>=
-int @[@] (*motion)(int, Cmd, Motion *);
+union {
+	int @[@] (*motion)(int, Cmd, Motion *);
+	int @[@] (*cmd)(char, Cmd, Cmd);
+};
 
-@ @<Key def...@>=
-['h'] = {CIsMotion, m_hl}, ['l'] = {CIsMotion, m_hl},@/
-['j'] = {CIsMotion, m_jk}, ['k'] = {CIsMotion, m_jk},@/
-['t'] = {CIsMotion|CHasArg, m_find}, ['f'] = {CIsMotion|CHasArg, m_find},@/
-['T'] = {CIsMotion|CHasArg, m_find}, ['F'] = {CIsMotion|CHasArg, m_find},@/
-['0'] = {CIsMotion, m_bol}, ['^'] = {CIsMotion, m_bol},@/
-['$'] = {CIsMotion, m_eol},@/
-['w'] = {CIsMotion, m_ewEW}, ['W'] = {CIsMotion, m_ewEW},@/
-['e'] = {CIsMotion, m_ewEW}, ['E'] = {CIsMotion, m_ewEW},@/
-['b'] = {CIsMotion, m_bB}, ['B'] = {CIsMotion, m_bB},@/
-['{'] = {CIsMotion, m_par}, ['}'] = {CIsMotion, m_par},
+@ @d Mtn(flags, f) {@+CIsMotion|flags, .motion = f}
+@d Act(flags, f) {@+flags, .cmd = f}
+@<Key def...@>=
+['h'] = Mtn(0, m_hl), ['l'] = Mtn(0, m_hl),@/
+['j'] = Mtn(0,m_jk), ['k'] = Mtn(0, m_jk),@/
+['t'] = Mtn(CHasArg, m_find), ['f'] = Mtn(CHasArg, m_find),@/
+['T'] = Mtn(CHasArg, m_find), ['F'] = Mtn(CHasArg, m_find),@/
+['0'] = Mtn(0, m_bol), ['^'] = Mtn(0, m_bol),@/
+['$'] = Mtn(0, m_eol),@/
+['w'] = Mtn(0, m_ewEW), ['W'] = Mtn(0, m_ewEW),@/
+['e'] = Mtn(0, m_ewEW), ['E'] = Mtn(0, m_ewEW),@/
+['b'] = Mtn(0, m_bB), ['B'] = Mtn(0, m_bB),@/
+['{'] = Mtn(0, m_par), ['}'] = Mtn(0, m_par),
 
 @ @<Subr...@>=
 static void docmd(char buf, Cmd c, Cmd m)
@@ -707,7 +712,8 @@ static void docmd(char buf, Cmd c, Cmd m)
 		Motion m = {curwin->cu, 0, 0};
 		if (keys[c.chr].motion(0, c, &m) == 0)
 			curwin->cu = m.end;
-	}
+	} else if (keys[c.chr].cmd != 0)
+		keys[c.chr].cmd(buf, c, m);
 }
 
 @** Index.
