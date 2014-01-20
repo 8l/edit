@@ -541,7 +541,7 @@ static int m_ewEW(int ismotion, Cmd c, Motion *m)
 		)
 			if (p >= curb->limbo) break;
 	}
-	m->end = ismotion ? p : p-1;
+	m->end = ismotion && ise ? p : p-1;
 	return 0;
 }
 
@@ -688,7 +688,19 @@ union {
 ['w'] = Mtn(0, m_ewEW), ['W'] = Mtn(0, m_ewEW),@/
 ['e'] = Mtn(0, m_ewEW), ['E'] = Mtn(0, m_ewEW),@/
 ['b'] = Mtn(0, m_bB), ['B'] = Mtn(0, m_bB),@/
-['{'] = Mtn(0, m_par), ['}'] = Mtn(0, m_par),
+['{'] = Mtn(0, m_par), ['}'] = Mtn(0, m_par),@/
+['d'] = Act(CHasMotion, a_d),
+
+@ @<Subr...@>=
+static int a_d(char buf, Cmd c, Cmd mc)
+{
+	Motion m = {curwin->cu, 0, 0};
+	if (mc.count == 0) mc.count = 1;
+	if (keys[mc.chr].motion(1, mc, &m)) return 1;
+	eb_del(curwin->eb, curwin->cu = m.beg, m.end);
+	return 0;
+}
+@ @<Predecl...@>= static int a_d(char, Cmd, Cmd);
 
 @ @<Subr...@>=
 static void docmd(char buf, Cmd c, Cmd m)
