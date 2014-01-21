@@ -405,7 +405,7 @@ static int m_jk(int ismotion, Cmd c, Motion *m)
 	if (ismotion) {
 		if (c.chr == 'k') swap(m->beg, m->end);
 		m->beg = buf_bol(curb, m->beg);
-		m->end = buf_eol(curb, m->end);
+		m->end = buf_eol(curb, m->end) + 1;
 	}
 	m->linewise = 1;
 	return 0;
@@ -696,8 +696,12 @@ static int a_d(char buf, Cmd c, Cmd mc)
 {
 	Motion m = {curwin->cu, 0, 0};
 	if (mc.count == 0) mc.count = 1;
-	if (keys[mc.chr].motion(1, mc, &m)) return 1;
-	eb_del(curwin->eb, curwin->cu = m.beg, m.end);
+	while (c.count--) {
+		if (keys[mc.chr].motion(1, mc, &m)) return 1;
+		eb_yank(curwin->eb, curwin->cu = m.beg, m.end, 0);
+		eb_del(curwin->eb, m.beg, m.end);
+		eb_commit(curwin->eb);
+	}
 	return 0;
 }
 @ @<Predecl...@>= static int a_d(char, Cmd, Cmd);
