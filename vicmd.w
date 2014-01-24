@@ -281,6 +281,7 @@ static void insert(Rune r)
 			curwin->cu--, nins--;
 		}
 		break;
+	case '\n': @<Insert a new line preserving the indentation@>; @+break;
 	default: eb_ins(eb, curwin->cu++, r), nins++;@+break;
 	}
 }
@@ -298,6 +299,17 @@ while (--cins)
 	}
 if (buf_get(&eb->b, curwin->cu-1) != '\n') curwin->cu--;
 eb_commit(eb), mode = Command;
+
+@ @d risblank(r) (risascii(r) && isblank(r))
+@<Insert a new line...@>=
+{	@+eb_ins(eb, curwin->cu, r), nins++;
+	for (
+		unsigned bol = buf_bol(curb, curwin->cu++);
+		risblank(r = buf_get(curb, bol));
+		bol++
+	)
+		eb_ins(eb, curwin->cu++, r), nins++;
+}
 
 @* Motion commands. They can be used as parameters for destructive commands,
 they almost always have two semantics, one when they are used bare
@@ -338,8 +350,6 @@ typedef struct {
 @ Motion commands often need to skip blanks, for instance, to find the first
 non blank character of a line.  The following function will be of great help
 with this.  It finds the end of a blank span starting at position |p|.
-
-@d risblank(r) (risascii(r) && isblank(r))
 
 @<Subr...@>=
 static unsigned blkspn(unsigned p)
@@ -704,7 +714,9 @@ static int a_d(char buf, Cmd c, Cmd mc)
 	}
 	return 0;
 }
-@ @<Predecl...@>= static int a_d(char, Cmd, Cmd);
+
+@ @<Predecl...@>=
+static int a_d(char, Cmd, Cmd);
 
 @ @<Subr...@>=
 static void docmd(char buf, Cmd c, Cmd m)
@@ -712,9 +724,15 @@ static void docmd(char buf, Cmd c, Cmd m)
 	if (c.count == 0)
 		c.count = 1;
 
-	if (c.chr == 'i' || c.chr == 'a') {
+	if (c.chr == 'i' || c.chr == 'I'
+	|| c.chr == 'a' || c.chr == 'A'
+	|| c.chr == 'o' || c.chr == 'O') {
 		if (c.chr == 'a' && curwin->cu != buf_eol(curb, curwin->cu))
 			curwin->cu++;
+		if (c.chr == 'A')
+			curwin->cu = buf_eol(curb, curwin->cu);
+		if (c.chr == 'I')
+			curwin->cu = blkspn(buf_bol(curb, curwin->cu));
 		nins = 0, cins = c.count;
 		mode = Insert;
 		return;
