@@ -200,7 +200,7 @@ del(Buf *b, unsigned pos)
 
 		if (b->last == old)
 			b->last = p; /* should do it... */
-		fixcol = q != 0 && q->n != 0;
+		fixcol = q != 0 && q->n != 0; // bug
 	}
 	else if (p->n) {
 		q = p;
