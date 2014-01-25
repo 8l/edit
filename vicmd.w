@@ -4,6 +4,10 @@
 % \datethis % print date on listing
 \def\bull{\item{$\bullet$}}
 \def\ASCII{{\sc ASCII}}
+@f line x
+@f Rune int
+@f W int
+@f EBuf int
 
 @ This module provides an implementation of \.{vi} commands.  We try to
 provide an implementation roughly \.{POSIX} compliant of the \.{vi} text
@@ -21,14 +25,10 @@ then executed on the currently focused window.  We try to follow the
 @<Subroutines and motion commands@>@/
 @<Definition of the parsing function |cmd_parse|@>
 
-@ We will need to edit buffers, have the rune and window types available. 
-Our own header file is also included to allow the compiler to check
+@ We need to edit buffers, have the rune and window types available. 
+This module header file is also included to allow the compiler to check
 consistency between definitions and declarations.  For debugging
 purposes we also include \.{stdio.h}.
-
-@f Rune int /* the type for runes is provided by \.{unicode.h} */
-@f W int /* the window type, provided by \.{win.h} */
-@f EBuf int /* the buffer type, provided by \.{edit.h} */
 
 @<Header files...@>=
 #include <assert.h>
@@ -368,7 +368,6 @@ implementation files do not end, so a vertical motion towards the end of
 the buffer will always succeed.
 
 @d swap(p0, p1) { unsigned _tmp = p0; p0 = p1, p1 = _tmp; }
-@f line x /* use line as a regular identifier */
 
 @<Predecl...@>=
 static int m_hl(int, Cmd, Motion *);
