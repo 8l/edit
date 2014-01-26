@@ -1,4 +1,4 @@
-% qcar 2013 -- first attempt at literate programming
+% qcar 2013 2014 -- first attempt at literate programming
 
 \nocon % omit table of contents
 % \datethis % print date on listing
@@ -177,12 +177,12 @@ gotdbl:
 		state = CmdArg; @+break;
 	}
 gotarg:
+	if (pcmd == &m && !(keys[pcmd->chr].flags & CIsMotion))
+		goto err;
 	if (keys[pcmd->chr].flags & CHasMotion) {
 		assert(pcmd == &c);
 		pcmd = &m; @+break;
 	}
-	if (pcmd == &m && !(keys[pcmd->chr].flags & CIsMotion))
-		goto err;
 	docmd(buf, c, m);
 	@<Reset parsing state@>;
 }
