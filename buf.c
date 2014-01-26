@@ -39,8 +39,9 @@ buf_del(Buf *b, unsigned pos)
 void
 buf_ins(Buf *b, unsigned pos, Rune r)
 {
+	while (pos > b->limbo++)
+		ins(b, pos, '\n');
 	ins(b, pos, r);
-	b->limbo++;
 }
 
 Rune
