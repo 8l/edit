@@ -513,8 +513,9 @@ static int m_eol(int ismotion, Cmd c, Motion  *m)
 
 	buf_getlc(curb, m->beg, &l, &x);
 	m->end = buf_eol(curb, buf_setlc(curb, l + c.count - 1, 0)) - 1;
-	if (buf_get(curb, m->end) == '\n')
-		m->end++; // the end line was empty
+	if (ismotion || buf_get(curb, m->end) == '\n') m->end++;
+	if (ismotion && m->linewise)
+		m->end++; // eat the last |'\n'| if the motion is linewise
 
 	return ismotion && c.count == 1 && m->end == m->beg;
 }
