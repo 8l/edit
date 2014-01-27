@@ -31,7 +31,8 @@ void
 buf_del(Buf *b, unsigned pos)
 {
 	del(b, pos);
-	b->limbo--;
+	if (pos < b->limbo)
+		b->limbo--;
 }
 
 /* buf_ins - Insert rune [r] at position [pos].
