@@ -432,6 +432,7 @@ static int m_find(int ismotion, Cmd c, Motion *m)
 	unsigned p = m->beg;
 	register Rune r;
 
+	@<Save the current find command invocation@>;
 	while (c.count--)
 		while ((r = buf_get(curb, p += dp)) != c.arg)
 			/* |buf_get| must return |'\n'| at position |-1u| */
@@ -444,6 +445,42 @@ static int m_find(int ismotion, Cmd c, Motion *m)
 	}
 	return 0;
 }
+
+@ The two commands \., and \.; repeat the last character search
+motion.  Hence, we must remember each invocation of |m_find| in
+a file local structure.  This structure can be locked to prevent
+|m_find| from altering it in certain special conditions.  The
+lock is used in the implementation of the undo and the ``repeat
+find'' commands.
+
+@<File local vari...@>=
+static struct {@+char locked;@+char chr;@+Rune arg;@+} lastf;
+
+@ @<Save the curr...@>=
+if (!lastf.locked) lastf.chr = c.chr, lastf.arg = c.arg;
+else lastf.locked = 0; // reset the lock
+
+@ The \.; command repeats the last search in the same direction,
+while \., inverts the direction.  We must take care of locking
+the |lastf| structure to avoid an alternating behavior when
+using the \., command repeatedly.
+
+@<Subr...@>=
+static int m_repf(int ismotion, Cmd c, Motion *m)
+{
+	Cmd cf = {c.count, lastf.chr, lastf.arg };
+
+	if (lastf.chr == 0) return 1;
+	if (c.chr == ',')
+		cf.chr = islower(cf.chr) ? toupper(cf.chr) : tolower(cf.chr);
+	lastf.locked = 1;
+	return m_find(ismotion, cf, m);
+}
+
+
+@ @<Predecl...@>=
+static int m_find(int, Cmd, Motion *);
+static int m_repf(int, Cmd, Motion *);
 
 @ The \.{vi} command set provides two commands to move towards the
 beginning of the line: \.0 and \.\^.  The latter moves to the first
@@ -483,7 +520,6 @@ static int m_eol(int ismotion, Cmd c, Motion  *m)
 }
 
 @ @<Predecl...@>=
-static int m_find(int, Cmd, Motion *);
 static int m_bol(int, Cmd, Motion *);
 static int m_eol(int, Cmd, Motion *);
 
@@ -692,6 +728,7 @@ union {
 ['j'] = Mtn(0,m_jk), ['k'] = Mtn(0, m_jk),@/
 ['t'] = Mtn(CHasArg, m_find), ['f'] = Mtn(CHasArg, m_find),@/
 ['T'] = Mtn(CHasArg, m_find), ['F'] = Mtn(CHasArg, m_find),@/
+[','] = Mtn(0, m_repf), [';'] = Mtn(0, m_repf),@/
 ['0'] = Mtn(0, m_bol), ['^'] = Mtn(0, m_bol),@/
 ['$'] = Mtn(0, m_eol),@/
 ['w'] = Mtn(0, m_ewEW), ['W'] = Mtn(0, m_ewEW),@/
