@@ -12,7 +12,7 @@ STRIP  := strip
 LDFLAGS += $$(pkg-config --libs x11 xft)
 CFLAGS  += -g --std=c99 -Wall -Wextra $$(pkg-config --cflags x11 xft)
 
-SRCFILES := unicode.c x11.c buf.c edit.c win.c cmd.c main.c
+SRCFILES := unicode.c x11.c buf.c edit.c win.c vicmd.c main.c
 OBJFILES := $(patsubst %.c, $(OBJDIR)/%.o, $(SRCFILES))
 
 all:
