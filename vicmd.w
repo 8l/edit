@@ -432,7 +432,7 @@ static int m_find(int ismotion, Cmd c, Motion *m)
 	unsigned p = m->beg;
 	register Rune r;
 
-	@<Save the current find command invocation@>;
+	@<Save the searched rune and the command name@>;
 	while (c.count--)
 		while ((r = buf_get(curb, p += dp)) != c.arg)
 			/* |buf_get| must return |'\n'| at position |-1u| */
@@ -447,16 +447,16 @@ static int m_find(int ismotion, Cmd c, Motion *m)
 }
 
 @ The two commands \., and \.; repeat the last character search
-motion.  Hence, we must remember each invocation of |m_find| in
-a file local structure.  This structure can be locked to prevent
-|m_find| from altering it in certain special conditions.  The
-lock is used in the implementation of the undo and the ``repeat
-find'' commands.
+motion.  So we need to store the searched rune and the command
+name in a file local structure at each invocation of |m_find|.
+This structure can be locked to prevent |m_find| from altering
+it in certain special conditions.  The lock is used in the
+implementation of the undo and the ``repeat find'' commands.
 
 @<File local vari...@>=
 static struct {@+char locked;@+char chr;@+Rune arg;@+} lastf;
 
-@ @<Save the curr...@>=
+@ @<Save the searched rune...@>=
 if (!lastf.locked) lastf.chr = c.chr, lastf.arg = c.arg;
 else lastf.locked = 0; // reset the lock
 
