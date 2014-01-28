@@ -471,8 +471,7 @@ static int m_repf(int ismotion, Cmd c, Motion *m)
 	Cmd cf = {c.count, lastf.chr, lastf.arg };
 
 	if (lastf.chr == 0) return 1;
-	if (c.chr == ',')
-		cf.chr = islower(cf.chr) ? toupper(cf.chr) : tolower(cf.chr);
+	if (c.chr == ',') cf.chr ^= 32; // flip case
 	lastf.locked = 1;
 	return m_find(ismotion, cf, m);
 }
