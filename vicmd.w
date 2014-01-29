@@ -686,6 +686,44 @@ if (blkspn(bol) >= m->beg) {
 @ @<Predecl...@>=
 static int m_par(int, Cmd, Motion *);
 
+@ Next comes the \.\% motion that finds the matching character.
+@<Predecl...@>=
+static int m_match(int, Cmd, Motion *);
+
+@ @<Subr...@>=
+static int m_match(int ismotion, Cmd c, Motion *m)
+{
+	char match[] = "<{([])}>";
+	int n, dp;
+	unsigned p = m->beg;
+	Rune r, beg = buf_get(curb, p), end;
+
+	for (n = 0; (Rune)match[n] != beg; n++)
+		if (n == 8) return 1;
+	dp = n >= 4 ? -1 : 1;
+	end = match[8 - n - 1];
+	for (n = 1, p += dp; n != 0; p += dp) {
+		r = buf_get(curb, p);
+		n += (r == beg) - (r == end);
+		if (p == -1u || p >= curb->limbo) return 1;
+	}
+	m->end = p - dp;
+	if (ismotion) {
+		if (dp == -1) swap(m->beg, m->end);
+		m->end++;
+		@<Extend motion range if full lines are choped@>;
+	}
+	return 0;
+}
+
+@ @<Extend motion range if...@>=
+if (blkspn(buf_bol(curb, m->beg)) >= m->beg
+&& blkspn(m->end) == buf_eol(curb, m->end)) {
+	m->linewise = 1;
+	m->beg = buf_bol(curb, m->beg);
+	m->end = buf_eol(curb, m->end) + 1;
+}
+
 @*1 Hacking the motion commands. Here is a short list of things you
 want to know if you start hacking either the motion commands, or any
 function used to implement them.
@@ -735,6 +773,7 @@ union {
 ['e'] = Mtn(0, m_ewEW), ['E'] = Mtn(0, m_ewEW),@/
 ['b'] = Mtn(0, m_bB), ['B'] = Mtn(0, m_bB),@/
 ['{'] = Mtn(0, m_par), ['}'] = Mtn(0, m_par),@/
+['%'] = Mtn(0, m_match),@/
 ['d'] = Act(CHasMotion, a_d),
 
 @ @<Subr...@>=
