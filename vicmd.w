@@ -584,7 +584,7 @@ static int m_ewEW(int ismotion, Cmd c, Motion *m)
 			s != 2;
 			s = dfa[s][ise ^ in(buf_get(curb, ise + p++))]
 		)
-			if (p >= curb->limbo) break;
+			if (p >= curb->limbo + 1) break;
 	}
 	m->end = ismotion && ise ? p : p-1;
 	return 0;
