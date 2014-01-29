@@ -690,7 +690,7 @@ static int m_match(int ismotion, Cmd c, Motion *m)
 	Rune match[] = { '<', '{', '(', '[', ']', ')', '}', '>' };
 	int n, dp;
 	unsigned p = m->beg;
-	Rune beg = buf_get(curb, p), end, r = beg;
+	Rune beg, end, r;
 
 	@<Find the search direction and the matching character@>;
 	for (
@@ -706,10 +706,11 @@ static int m_match(int ismotion, Cmd c, Motion *m)
 }
 
 @ @<Find the sear...@>=
-for (n = 0; match[n] != beg; n++)
-	if (n == 7) return 1;
-dp = n >= 4 ? -1 : 1;
-end = match[7 - n];
+for (; (r = beg = buf_get(curb, p)) != '\n'; p++)
+	for (n = 0; n < 8; n++)
+		if (match[n] == r) goto found;
+return 1;
+found: dp = n >= 4 ? -1 : 1, end = match[7 - n];
 
 @ @<Detect if the motion is line...@>=
 {@+	if (dp == -1) swap(m->beg, m->end);
