@@ -691,7 +691,7 @@ maintain a counter of the nesting level of the considered delimiters.
 static int m_match(int ismotion, Cmd c, Motion *m)
 {
 	Rune match[] = { '<', '{', '(', '[', ']', ')', '}', '>' };
-	int n, dp;
+	int n, dp, N = sizeof match / sizeof match[0];
 	unsigned p = m->beg;
 	Rune beg, end, r;
 
@@ -714,10 +714,10 @@ the line.  If no such delimiter is found we signal an error.
 
 @<Find the sear...@>=
 for (; (r = beg = buf_get(curb, p)) != '\n'; p++)
-	for (n = 0; n < 8; n++)
+	for (n = 0; n < N; n++)
 		if (match[n] == r) goto found;
 return 1;
-found: dp = n >= 4 ? -1 : 1, end = match[7 - n];
+found: dp = n >= N/2 ? -1 : 1, end = match[N - n - 1];
 
 @ The motion will be linewise if only blank characters are before
 the openning delimiter and after the closing delimiter, this works
