@@ -684,6 +684,9 @@ if (blkspn(bol) >= m->beg) {
 }
 
 @ Next comes the \.\% motion that finds the matching character.
+We simply use the algorithm described in the \.{POSIX} standard and
+maintain a counter of the nesting level of the considered delimiters.
+
 @<Subr...@>=
 static int m_match(int ismotion, Cmd c, Motion *m)
 {
@@ -705,14 +708,21 @@ static int m_match(int ismotion, Cmd c, Motion *m)
 	return 0;
 }
 
-@ @<Find the sear...@>=
+@ The move to matching character command can work as long as
+one opening or closing delimiter is present on the current
+line after or under the cursor.
+
+@<Find the sear...@>=
 for (; (r = beg = buf_get(curb, p)) != '\n'; p++)
 	for (n = 0; n < 8; n++)
 		if (match[n] == r) goto found;
 return 1;
 found: dp = n >= 4 ? -1 : 1, end = match[7 - n];
 
-@ @<Detect if the motion is line...@>=
+@ The motion will be linewise if only blank characters are before
+the first delimiter and after the last delimiter.
+
+@<Detect if the motion is line...@>=
 {@+	if (dp == -1) swap(m->beg, m->end);
 	m->end++;
 	if (blkspn(buf_bol(curb, m->beg)) >= m->beg
