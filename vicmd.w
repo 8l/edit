@@ -708,9 +708,9 @@ static int m_match(int ismotion, Cmd c, Motion *m)
 	return 0;
 }
 
-@ The move to matching character command can work as long as
-one opening or closing delimiter is present on the current
-line after or under the cursor.
+@ The move to matching character command will take as delimiter
+the first valid delimiter found after the current position in
+the line.  If no such delimiter is found we signal an error.
 
 @<Find the sear...@>=
 for (; (r = beg = buf_get(curb, p)) != '\n'; p++)
@@ -720,11 +720,12 @@ return 1;
 found: dp = n >= 4 ? -1 : 1, end = match[7 - n];
 
 @ The motion will be linewise if only blank characters are before
-the first delimiter and after the last delimiter.
+the openning delimiter and after the closing delimiter, this works
+well with C blocks.
 
 @<Detect if the motion is line...@>=
 {@+	if (dp == -1) swap(m->beg, m->end);
-	m->end++;
+	m->end++; // get past the closing delimiter
 	if (blkspn(buf_bol(curb, m->beg)) >= m->beg
 	&& blkspn(m->end) == buf_eol(curb, m->end)) {
 		m->linewise = 1;
