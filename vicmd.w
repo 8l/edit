@@ -519,9 +519,19 @@ static int m_eol(int ismotion, Cmd c, Motion  *m)
 	return ismotion && c.count == 1 && m->end == m->beg;
 }
 
+@ @<Subr...@>=
+static int m_line(int ismotion, Cmd c, Motion *m)
+{
+	int r = m_jk(ismotion, (Cmd){ c.count-1, 'j', 0 }, m);
+	if (ismotion || r) return r;
+	m->end = blkspn(buf_bol(curb, m->end));
+	return 0;
+}
+
 @ @<Predecl...@>=
 static int m_bol(int, Cmd, Motion *);
 static int m_eol(int, Cmd, Motion *);
+static int m_line(int, Cmd, Motion *);
 
 @ Next, we implement word motions.  They can act on {\sl big} or
 {\sl small} words.  Small words are sequences composed of alphanumeric
@@ -782,7 +792,7 @@ union {
 ['T'] = Mtn(CHasArg, m_find), ['F'] = Mtn(CHasArg, m_find),@/
 [','] = Mtn(0, m_repf), [';'] = Mtn(0, m_repf),@/
 ['0'] = Mtn(0, m_bol), ['^'] = Mtn(0, m_bol),@/
-['$'] = Mtn(0, m_eol),@/
+['$'] = Mtn(0, m_eol), ['_'] = Mtn(0, m_line),@/
 ['w'] = Mtn(0, m_ewEW), ['W'] = Mtn(0, m_ewEW),@/
 ['e'] = Mtn(0, m_ewEW), ['E'] = Mtn(0, m_ewEW),@/
 ['b'] = Mtn(0, m_bB), ['B'] = Mtn(0, m_bB),@/
