@@ -12,7 +12,7 @@
 @ This module provides an implementation of \.{vi} commands.  We try to
 provide an implementation roughly \.{POSIX} compliant of the \.{vi} text
 editor.  The only important function exported by this module accepts
-unicode runes and parse them to construct commands, these commands are
+unicode runes and parses them to construct commands, these commands are
 then executed on the currently focused window.  We try to follow the
 \.{POSIX} standard as closely as a simple implementation allows us.
 
@@ -519,7 +519,11 @@ static int m_eol(int ismotion, Cmd c, Motion  *m)
 	return ismotion && c.count == 1 && m->end == m->beg;
 }
 
-@ @<Subr...@>=
+@ The \.\_ command is handy to select the current line in full.
+Here I rely on the fact that \.j can be called with 0 as count and
+selects the current line if run as motion in this case.
+
+@<Subr...@>=
 static int m_line(int ismotion, Cmd c, Motion *m)
 {
 	int r = m_jk(ismotion, (Cmd){ c.count-1, 'j', 0 }, m);
