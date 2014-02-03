@@ -828,12 +828,13 @@ static void docmd(char buf, Cmd c, Cmd m)
 	|| c.chr == 'o' || c.chr == 'O') {
 		if (c.chr == 'a' && curwin->cu != buf_eol(curb, curwin->cu))
 			curwin->cu++;
-		if (c.chr == 'A')
+		if (c.chr == 'A' || c.chr == 'o')
 			curwin->cu = buf_eol(curb, curwin->cu);
 		if (c.chr == 'I')
 			curwin->cu = blkspn(buf_bol(curb, curwin->cu));
 		nins = 0, cins = c.count;
 		mode = Insert;
+		if (c.chr == 'o') insert('\n');
 		return;
 	}
 	if (c.chr == 'q'-'a' + 1) {
