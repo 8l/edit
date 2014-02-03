@@ -798,24 +798,28 @@ union {
 ['b'] = Mtn(0, m_bB), ['B'] = Mtn(0, m_bB),@/
 ['{'] = Mtn(0, m_par), ['}'] = Mtn(0, m_par),@/
 ['%'] = Mtn(0, m_match),@/
-['d'] = Act(CHasMotion, a_d),
+['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_x),
 
 @ @<Subr...@>=
 static int a_d(char buf, Cmd c, Cmd mc)
 {
 	Motion m = {curwin->cu, 0, 0};
 	if (mc.count == 0) mc.count = 1;
-	while (c.count--) {
-		if (keys[mc.chr].motion(1, mc, &m)) return 1;
-		eb_yank(curwin->eb, curwin->cu = m.beg, m.end, 0);
-		eb_del(curwin->eb, m.beg, m.end);
-		eb_commit(curwin->eb);
-	}
+	mc.count *= c.count;
+	if (keys[mc.chr].motion(1, mc, &m)) return 1;
+	eb_yank(curwin->eb, curwin->cu = m.beg, m.end, 0);
+	eb_del(curwin->eb, m.beg, m.end);
+	eb_commit(curwin->eb);
 	return 0;
 }
 
+@ @<Subr...@>=
+static int a_x(char buf, Cmd c, Cmd mc)
+{@+ return a_d(buf, (Cmd){1, 'd', 0}, (Cmd){c.count, 'l', 0});@+ }
+
 @ @<Predecl...@>=
 static int a_d(char, Cmd, Cmd);
+static int a_x(char, Cmd, Cmd);
 
 @ @<Subr...@>=
 static void docmd(char buf, Cmd c, Cmd m)
