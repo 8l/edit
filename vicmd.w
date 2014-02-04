@@ -302,7 +302,8 @@ eb_commit(eb), mode = Command;
 
 @ @d risblank(r) (risascii(r) && isblank(r))
 @<Insert a new line...@>=
-{	@+eb_ins(eb, curwin->cu, r), nins++;
+{
+	eb_ins(eb, curwin->cu, r), nins++;
 	for (
 		unsigned bol = buf_bol(curb, curwin->cu++);
 		risblank(r = buf_get(curb, bol));
@@ -676,8 +677,8 @@ default: ltyp = Text;@+break;
 
 @ The only critical point when updating the state and moving on to
 the next line is to check if the final state is reached before
-updating |bol|.  Not doing this would make the implementation off
-by one line.
+updating |bol|.  If we do not respect this order the implementation
+is off by one line.
 
 @<Update the state |s| and...@>=
 if ((s = dfa[s][ltyp]) == 9) break;
@@ -722,9 +723,9 @@ static int m_match(int ismotion, Cmd c, Motion *m)
 	return 0;
 }
 
-@ The move to matching character command will take as delimiter
-the first valid delimiter found after the current position in
-the line.  If no such delimiter is found we signal an error.
+@ The move to matching character command looks for the first valid
+delimiter after the cursor position in the line.  If no such
+delimiter is found we signal an error.
 
 @<Find the sear...@>=
 for (; (r = beg = buf_get(curb, p)) != '\n'; p++)
@@ -733,12 +734,13 @@ for (; (r = beg = buf_get(curb, p)) != '\n'; p++)
 return 1;
 found: dp = n >= N/2 ? -1 : 1, end = match[N - n - 1];
 
-@ The motion will be linewise if only blank characters are before
-the openning delimiter and after the closing delimiter, this works
-well with C blocks.
+@ The motion is linewise if only blank characters are before the
+opening delimiter and after the closing delimiter, this is
+convenient for programming languages with blocks like C.
 
 @<Detect if the motion is line...@>=
-{@+	if (dp == -1) swap(m->beg, m->end);
+{
+	if (dp == -1) swap(m->beg, m->end);
 	m->end++; // get past the closing delimiter
 	if (blkspn(buf_bol(curb, m->beg)) >= m->beg
 	&& blkspn(m->end) == buf_eol(curb, m->end)) {
