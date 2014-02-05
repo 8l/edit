@@ -5,7 +5,7 @@ V = @
 TOP = .
 
 CC     := clang
-LD     := clang
+LD     := $(CC)
 TANGLE := ctangle
 STRIP  := strip
 
