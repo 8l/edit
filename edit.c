@@ -169,6 +169,7 @@ eb_new()
 		ybini(&eb->nb[i]);
 	}
 	eb->ntip = 0;
+	eb->path = 0;
 	return eb;
 }
 

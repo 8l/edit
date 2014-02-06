@@ -17,10 +17,14 @@ struct ybuf {
 
 struct ebuf {
 	Buf b;		/* base text buffer */
+
 	Log *undo;	/* undo redo logs */
 	Log *redo;
+
 	YBuf nb[9];	/* numeric buffers */
 	int ntip;	/* first numeric buffer */
+
+	char *path;	/* file path */
 };
 
 EBuf *eb_new(void);
