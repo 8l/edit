@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,15 +39,17 @@ main(int ac, char *av[])
 		if (!fp)
 			die("cannot open input file");
 
-		for (unsigned char buf[11], *beg=buf;;) {
-			size_t rd = fread(beg, 1, sizeof buf - (beg-buf), fp);
-			int ins;
+		for (unsigned char buf[11], *beg = buf;;) {
+			int rd, in, ins;
 
+			rd = fread(beg, 1, sizeof buf - (beg-buf), fp);
+			in = rd + (beg-buf);
+			ins = eb_ins_utf8(eb, eb->b.limbo, buf, in);
+
+			assert(rd != 0 || in == ins);
 			if (rd == 0) break;
-
-			ins = eb_ins_utf8(eb, eb->b.limbo, buf, rd += (beg-buf));
-			memmove(buf, buf+ins, rd-ins);
-			beg = buf + (rd - ins);
+			memmove(buf, buf+ins, in-ins);
+			beg = buf + (in-ins);
 		}
 		fclose(fp);
 	}
