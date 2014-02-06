@@ -364,7 +364,7 @@ main() {
 			break;
 		case '!':
 			if (eb->undo->type != Commit)
-				eb_clean(eb);
+				eb_commit(eb);
 			eb_undo(eb, 1, 0);
 			break;
 		case '?':
@@ -377,7 +377,7 @@ main() {
 			while (buf_get(&eb->b, i-1) != '\n');
 			break;
 		case 'c':
-			eb_clean(eb);
+			eb_commit(eb);
 			break;
 		case '#':
 			break;
