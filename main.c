@@ -1,6 +1,7 @@
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "cmd.h"
@@ -19,15 +20,36 @@ die(char *m)
 }
 
 int
-main(void)
+main(int ac, char *av[])
 {
 	struct gui *g;
+	EBuf *eb;
 	GEvent e;
 
 	g = &gui_x11;
 	win_init(g);
 
-	curwin = win_new(eb_new());
+	eb = eb_new();
+	curwin = win_new(eb);
+
+	if (ac > 1) {
+		FILE *fp = fopen((eb->path = av[1]), "r");
+
+		if (!fp)
+			die("cannot open input file");
+
+		for (unsigned char buf[11], *beg=buf;;) {
+			size_t rd = fread(beg, 1, sizeof buf - (beg-buf), fp);
+			int ins;
+
+			if (rd == 0) break;
+
+			ins = eb_ins_utf8(eb, eb->b.limbo, buf, rd += (beg-buf));
+			memmove(buf, buf+ins, rd-ins);
+			beg = buf + (rd - ins);
+		}
+		fclose(fp);
+	}
 
 	while (!exiting) {
 		g->nextevent(&e);
