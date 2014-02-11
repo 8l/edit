@@ -36,6 +36,7 @@ struct log {
 
 static void pushlog(Log *, int);
 static void ybini(YBuf *);
+static void puteb(EBuf *, FILE *);
 static void putrune(Rune, FILE *);
 
 void
@@ -257,8 +258,58 @@ eb_yank(EBuf *eb, unsigned p0, unsigned p1, YBuf *yb)
 		*pr = buf_get(&eb->b, p0);
 }
 
-void
-eb_write(EBuf *eb, FILE *fp)
+int
+eb_write(EBuf *eb)
+{
+	FILE *fp = fopen(eb->path, "w");
+
+	if (!fp)
+		return -1;
+	puteb(eb, fp);
+	fclose(fp);
+	return 0;
+}
+
+
+/* static functions */
+
+/* pushlog - The invariant preserved is that
+ * the topmost log entry has a rune array of
+ * MaxBuf runes.
+ */
+static void
+pushlog(Log *log, int type)
+{
+	size_t sz;
+	Log *l;
+
+	assert(log->type != Delete || log->np <= MaxBuf);
+	sz = sizeof *l;
+	if (log->type == Delete) /* only deletions carry data */
+		sz += log->np*sizeof(Rune);
+	l = malloc(sz);
+	assert(l);
+	memcpy(l, log, sz);
+
+	log->type = type;
+	log->p0 = log->np = 0;
+	log->next = l;
+}
+
+static void
+ybini(YBuf *yb)
+{
+	assert(yb->r == 0);
+
+	yb->r = malloc(YankSize * sizeof(Rune));
+	assert(yb->r);
+	yb->sz = YankSize;
+	yb->nr = 0;
+	yb->linemode = 0;
+}
+
+static void
+puteb(EBuf *eb, FILE *fp)
 {
 	enum { Munching, Spitting } state;
 	unsigned munchb = 0, munche = 0;
@@ -302,44 +353,6 @@ eb_write(EBuf *eb, FILE *fp)
 	} while (munche < eb->b.limbo);
 
 	putc('\n', fp); // always terminate file with a newline
-}
-
-
-/* static functions */
-
-/* pushlog - The invariant preserved is that
- * the topmost log entry has a rune array of
- * MaxBuf runes.
- */
-static void
-pushlog(Log *log, int type)
-{
-	size_t sz;
-	Log *l;
-
-	assert(log->type != Delete || log->np <= MaxBuf);
-	sz = sizeof *l;
-	if (log->type == Delete) /* only deletions carry data */
-		sz += log->np*sizeof(Rune);
-	l = malloc(sz);
-	assert(l);
-	memcpy(l, log, sz);
-
-	log->type = type;
-	log->p0 = log->np = 0;
-	log->next = l;
-}
-
-static void
-ybini(YBuf *yb)
-{
-	assert(yb->r == 0);
-
-	yb->r = malloc(YankSize * sizeof(Rune));
-	assert(yb->r);
-	yb->sz = YankSize;
-	yb->nr = 0;
-	yb->linemode = 0;
 }
 
 void

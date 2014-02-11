@@ -831,11 +831,8 @@ static int a_x(char, Cmd, Cmd);
 @ @<Subr...@>=
 static int a_write(char buf, Cmd c, Cmd mc)
 {
-	FILE *fp = fopen("dummy.txt", "w");
-	if (!fp) return 1;
-	eb_write(curwin->eb, fp);
-	fclose(fp);
-	return 0;
+	(void)buf;@+ (void)c@+; (void)mc;
+	return eb_write(curwin->eb);
 }
 
 @ @<Predecl...@>=

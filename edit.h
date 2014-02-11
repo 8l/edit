@@ -34,5 +34,6 @@ int eb_ins_utf8(EBuf *, unsigned, unsigned char *, int);
 void eb_commit(EBuf *);
 void eb_undo(EBuf *, int, unsigned *);
 void eb_yank(EBuf *, unsigned, unsigned, YBuf *);
+int eb_write(EBuf *);
 
 #endif /* ndef EDIT_H */
