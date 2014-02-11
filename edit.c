@@ -1,6 +1,7 @@
 /*% clang -Wall -g -DTEST -std=c99 obj/{unicode.o,buf.o} % -o #
  */
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -35,6 +36,7 @@ struct log {
 
 static void pushlog(Log *, int);
 static void ybini(YBuf *);
+static void putrune(Rune, FILE *);
 
 void
 log_insert(Log *l, unsigned p0, unsigned p1)
@@ -255,6 +257,52 @@ eb_yank(EBuf *eb, unsigned p0, unsigned p1, YBuf *yb)
 		*pr = buf_get(&eb->b, p0);
 }
 
+void
+eb_write(EBuf *eb, FILE *fp)
+{
+	enum { Munching, Spitting } state;
+	unsigned munchb = 0, munche = 0;
+	Rune r;
+	int nl = 0;
+
+	state = Munching;
+	do switch (state) {
+
+	case Munching:
+		r = buf_get(&eb->b, munche);
+		if (r == ' ' || r == '\t' || r == '\n') {
+			nl += (r == '\n');
+			munche++;
+			continue;
+		}
+		for (; munchb < munche; munchb++) {
+			r = buf_get(&eb->b, munchb);
+			if ((r == ' ' || r == '\t') && nl)
+				continue;
+			assert(nl == 0 || r == '\n');
+			putrune(r, fp);
+			nl--;
+		}
+		state = Spitting; /* munchb == munche, here */
+		continue;
+
+	case Spitting:
+		r = buf_get(&eb->b, munchb);
+		if (r == ' ' || r == '\t' || r == '\n') {
+			munche = munchb;
+			state = Munching;
+			nl = 0;
+			continue;
+		}
+		putrune(r, fp);
+		munchb++;
+		continue;
+
+	} while (munche < eb->b.limbo);
+
+	putc('\n', fp); // always terminate file with a newline
+}
+
 
 /* static functions */
 
@@ -293,17 +341,19 @@ ybini(YBuf *yb)
 	yb->linemode = 0;
 }
 
+void
+putrune(Rune r, FILE *fp)
+{
+	unsigned char uni[16];
+	int i, n;
+
+	n = utf8_encode_rune(r, uni, 16);
+	for (i=0; i<n; i++)
+		putc(uni[i], fp);
+}
+
 
 #ifdef TEST
-#include <stdio.h>
-
-void
-putrune(Rune r)
-{
-	unsigned char buf[10];
-	utf8_encode_rune(r, buf, 10);
-	printf("%.*s", utf8_rune_len(r), buf);
-}
 
 void
 dumplog(Log *l)
@@ -319,7 +369,7 @@ dumplog(Log *l)
 			printf("%02d - (p0=%u np=%u)\n", n, l->p0, l->np);
 			printf("\t'");
 			for (i=l->np-1; i>=0; --i)
-				putrune(l->rbuf[i]);
+				putrune(l->rbuf[i], stdout);
 			printf("'\n");
 			break;
 		case Commit:
@@ -373,7 +423,7 @@ main() {
 		case 'p':
 			i = 0;
 			do
-				putrune(buf_get(&eb->b, i++));
+				putrune(buf_get(&eb->b, i++), stdout);
 			while (buf_get(&eb->b, i-1) != '\n');
 			break;
 		case 'c':
