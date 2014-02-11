@@ -281,7 +281,8 @@ eb_write(EBuf *eb, FILE *fp)
 				continue;
 			assert(nl == 0 || r == '\n');
 			putrune(r, fp);
-			nl--;
+			if (nl)
+				nl--;
 		}
 		state = Spitting; /* munchb == munche, here */
 		continue;
