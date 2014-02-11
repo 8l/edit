@@ -53,6 +53,7 @@ main(int ac, char *av[])
 		}
 		fclose(fp);
 	}
+	eb->path = "dummy.txt"; // to avoid disasters
 
 	while (!exiting) {
 		g->nextevent(&e);
