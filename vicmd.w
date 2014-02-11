@@ -791,6 +791,7 @@ union {
 
 @ @d Mtn(flags, f) {@+CIsMotion|flags, .motion = f}
 @d Act(flags, f) {@+flags, .cmd = f}
+@d CTRL(x) ((x) ^ 64)
 @<Key def...@>=
 ['h'] = Mtn(0, m_hl), ['l'] = Mtn(0, m_hl),@/
 ['j'] = Mtn(0,m_jk), ['k'] = Mtn(0, m_jk),@/
@@ -805,7 +806,7 @@ union {
 ['{'] = Mtn(0, m_par), ['}'] = Mtn(0, m_par),@/
 ['%'] = Mtn(0, m_match),@/
 ['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_x),@/
-['W'^64] = Act(0, a_write),
+[CTRL('W')] = Act(0, a_write),
 
 @ @<Subr...@>=
 static int a_d(char buf, Cmd c, Cmd mc)
@@ -831,7 +832,7 @@ static int a_x(char, Cmd, Cmd);
 @ @<Subr...@>=
 static int a_write(char buf, Cmd c, Cmd mc)
 {
-	(void)buf;@+ (void)c@+; (void)mc;
+	(void)buf;@+ (void)c;@+ (void)mc;
 	return eb_write(curwin->eb);
 }
 
