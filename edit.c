@@ -280,11 +280,11 @@ eb_write(EBuf *eb, FILE *fp)
 			if ((r == ' ' || r == '\t') && nl)
 				continue;
 			assert(nl == 0 || r == '\n');
+			nl -= (r == '\n');
 			putrune(r, fp);
-			if (nl)
-				nl--;
 		}
-		state = Spitting; /* munchb == munche, here */
+		assert(munchb == munche);
+		state = Spitting;
 		continue;
 
 	case Spitting:
