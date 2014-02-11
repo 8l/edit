@@ -804,7 +804,8 @@ union {
 ['b'] = Mtn(0, m_bB), ['B'] = Mtn(0, m_bB),@/
 ['{'] = Mtn(0, m_par), ['}'] = Mtn(0, m_par),@/
 ['%'] = Mtn(0, m_match),@/
-['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_x),
+['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_x),@/
+['W'^64] = Act(0, a_write),
 
 @ @<Subr...@>=
 static int a_d(char buf, Cmd c, Cmd mc)
@@ -826,6 +827,19 @@ static int a_x(char buf, Cmd c, Cmd mc)
 @ @<Predecl...@>=
 static int a_d(char, Cmd, Cmd);
 static int a_x(char, Cmd, Cmd);
+
+@ @<Subr...@>=
+static int a_write(char buf, Cmd c, Cmd mc)
+{
+	FILE *fp = fopen("dummy.txt", "w");
+	if (!fp) return 1;
+	eb_write(curwin->eb, fp);
+	fclose(fp);
+	return 0;
+}
+
+@ @<Predecl...@>=
+static int a_write(char, Cmd, Cmd);
 
 @ @<Subr...@>=
 static void docmd(char buf, Cmd c, Cmd m)
