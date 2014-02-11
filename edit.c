@@ -355,7 +355,7 @@ puteb(EBuf *eb, FILE *fp)
 	putc('\n', fp); // always terminate file with a newline
 }
 
-void
+static void
 putrune(Rune r, FILE *fp)
 {
 	unsigned char uni[16];
