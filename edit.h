@@ -5,6 +5,7 @@
 #include "buf.h"
 
 typedef struct log  Log;
+typedef struct mark Mark;
 typedef struct ebuf EBuf;
 typedef struct ybuf YBuf;
 
@@ -17,13 +18,11 @@ struct ybuf {
 
 struct ebuf {
 	Buf b;		/* base text buffer */
-
 	Log *undo;	/* undo redo logs */
 	Log *redo;
-
+	Mark *ml;	/* buffer marks */
 	YBuf nb[9];	/* numeric buffers */
 	int ntip;	/* first numeric buffer */
-
 	char *path;	/* file path */
 };
 
@@ -34,6 +33,8 @@ int eb_ins_utf8(EBuf *, unsigned, unsigned char *, int);
 void eb_commit(EBuf *);
 void eb_undo(EBuf *, int, unsigned *);
 void eb_yank(EBuf *, unsigned, unsigned, YBuf *);
+void eb_setmark(EBuf *, Rune, unsigned);
+void eb_getmark(EBuf *, Rune, unsigned *);
 int eb_write(EBuf *);
 
 #endif /* ndef EDIT_H */

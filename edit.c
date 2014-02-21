@@ -14,6 +14,12 @@ enum {
 	YankSize = 128,	/* initial size of a yank buffer */
 };
 
+struct mark {
+	Rune r;		/* mark name */
+	unsigned p;	/* mark position */
+	Mark *next;
+};
+
 struct log {
 	enum {
 		Insert = '+',
@@ -36,6 +42,7 @@ struct log {
 
 static void pushlog(Log *, int);
 static void ybini(YBuf *);
+static void rebase(Mark **, Log *);
 static void puteb(EBuf *, FILE *);
 static void putrune(Rune, FILE *);
 
@@ -167,6 +174,7 @@ eb_new()
 	buf_init(&eb->b);
 	eb->undo = log_new();
 	eb->redo = log_new();
+	eb->ml = 0;
 	for (i=0; i<9; i++) {
 		eb->nb[i].r = 0;
 		ybini(&eb->nb[i]);
@@ -213,6 +221,7 @@ void
 eb_commit(EBuf *eb)
 {
 	log_commit(eb->undo);
+	rebase(&eb->ml, eb->undo->next);
 }
 
 void
@@ -226,6 +235,7 @@ eb_undo(EBuf *eb, int undo, unsigned *pp)
 		u = eb->redo, r = eb->undo;
 
 	log_undo(u, &eb->b, r, pp);
+	rebase(&eb->ml, r->next);
 }
 
 void
@@ -256,6 +266,39 @@ eb_yank(EBuf *eb, unsigned p0, unsigned p1, YBuf *yb)
 
 	for (pr = yb->r; p0 < p1; p0++, pr++)
 		*pr = buf_get(&eb->b, p0);
+}
+
+void
+eb_setmark(EBuf *eb, Rune name, unsigned pos)
+{
+	Mark *m;
+
+	for (m=eb->ml; m && m->r != name; m=m->next)
+		;
+
+	if (m == 0) {
+		m = malloc(sizeof *m);
+		assert(m);
+		m->r = name;
+		m->next = eb->ml;
+		eb->ml = m;
+	}
+
+	m->p = pos;
+}
+
+void
+eb_getmark(EBuf *eb, Rune name, unsigned *pos)
+{
+	Mark *m;
+
+	for (m=eb->ml; m; m=m->next)
+		if (m->r == name) {
+			*pos = m->p;
+			return;
+		}
+
+	*pos = -1u;
 }
 
 int
@@ -306,6 +349,44 @@ ybini(YBuf *yb)
 	yb->sz = YankSize;
 	yb->nr = 0;
 	yb->linemode = 0;
+}
+
+static void
+rebase(Mark **pm, Log *log)
+{
+	Mark *m;
+
+	assert(log);
+
+	if (log->type == Commit)
+		/* we hit the previous commit, rebase is done */
+		return;
+
+	rebase(pm, log->next);
+
+	switch(log->type) {
+	case Insert:
+		for (m=*pm; m; m=m->next)
+			if (m->p >= log->p0)
+				m->p += log->np;
+		break;
+	case Delete:
+		while ((m=*pm)) {
+			if (m->p >= log->p0) {
+				if (m->p < log->p0 + log->np) {
+					/* the mark was deleted */
+					*pm = m->next;
+					free(m);
+					continue;
+				}
+				m->p -= log->np;
+			}
+			pm = &m->next;
+		}
+		break;
+	default:
+		abort();
+	}
 }
 
 static void
