@@ -570,8 +570,8 @@ We use the following regular grammars to factor the code for the four
 forward word motion commands.
 $$
 \vbox{\halign{\hfil#: &# \cr
-\.w / \.W& $in^*; (\neg in)^*; in$ \cr
-\.e / \.E& $(\neg in)^*; in^*; \neg in$ \cr
+\.w / \.W& $in^*; (\neg in)^+; in$ \cr
+\.e / \.E& $(\neg in)^*; in^+; \neg in$ \cr
 }}
 $$
 In the above figure, $in$ matches a big or small word rune (depending
