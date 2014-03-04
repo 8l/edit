@@ -563,9 +563,8 @@ static int risbigword(Rune r)
 implementation exposes infinite buffers we have to take care of
 not hanging in a loop when going towards the end of the buffer.
 To do this we rely on the |limbo| field of the \Cee\ buffer structure.
-This field contains the offset at which limbo begins, if we get past
-this offset during parsing we know we are heading straight to hell
-and should stop reading input.
+This field contains the offset at which limbo begins, the motion stops
+as soon as it gets past this offset.
 
 We use the following regular grammars to factor the code for the four
 forward word motion commands.
@@ -586,21 +585,28 @@ automaton.
 static int m_ewEW(int, Cmd, Motion *);
 static int m_bB(int, Cmd, Motion *);
 
-@ @<Subr...@>=
+
+@ There is a special case for \.w and \.W as motion commands.  They do
+not delete newlines after the last word scanned, this is addressed
+by the second part of the test used for early exit.
+
+@<Subr...@>=
 static int m_ewEW(int ismotion, Cmd c, Motion *m)
 {
 	int @[@] (*in)(Rune) = islower(c.chr) ? risword : risbigword;
-	int dfa[][2] = {{1, 0}, {1, 2}}, ise = tolower(c.chr) == 'e';
+	int dfa[][2] = {{1, 0}, {1, 2}}, ise = tolower(c.chr) == 'e' ;
 	unsigned p = m->beg;
+	Rune r = 'x';
 
-	while (c.count--) {
+	while (c.count--)
 		for (
 			int s = 0;
 			s != 2;
-			s = dfa[s][ise ^ in(buf_get(curb, ise + p++))]
+			s = dfa[s][ise ^ in(r = buf_get(curb, ise + p++))]
 		)
-			if (p >= curb->limbo + 1) break;
-	}
+			if (p >= curb->limbo + 1
+			|| (r == '\n' && c.count == 0 && ismotion && !ise))
+				break;
 	m->end = ismotion && ise ? p : p-1;
 	return 0;
 }
