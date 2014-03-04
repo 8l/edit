@@ -392,13 +392,11 @@ rebase(Mark **pm, Log *log)
 static void
 puteb(EBuf *eb, FILE *fp)
 {
-	enum { Munching, Spitting } state;
-	unsigned munchb = 0, munche = 0;
+	enum { Munching, Spitting } state = Munching;
+	unsigned munchb = 0, munche = 0, nl = 0;
 	Rune r;
-	int nl = 0;
 
-	state = Munching;
-	do switch (state) {
+	while (munche < eb->b.limbo) switch (state) {
 
 	case Munching:
 		r = buf_get(&eb->b, munche);
@@ -424,16 +422,16 @@ puteb(EBuf *eb, FILE *fp)
 		if (r == ' ' || r == '\t' || r == '\n') {
 			munche = munchb;
 			state = Munching;
-			nl = 0;
+			assert(nl == 0);
 			continue;
 		}
 		putrune(r, fp);
 		munchb++;
 		continue;
 
-	} while (munche < eb->b.limbo);
+	}
 
-	putc('\n', fp); // always terminate file with a newline
+	putrune('\n', fp); // always terminate file with a newline
 }
 
 static void
