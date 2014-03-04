@@ -588,7 +588,7 @@ static int m_bB(int, Cmd, Motion *);
 
 @ There is a special case for \.w and \.W as motion commands.  They do
 not delete newlines after the last word scanned, this is addressed
-by the second part of the test used for early exit.
+by the second test used for early exit.
 
 @<Subr...@>=
 static int m_ewEW(int ismotion, Cmd c, Motion *m)
@@ -603,10 +603,10 @@ static int m_ewEW(int ismotion, Cmd c, Motion *m)
 			int s = 0;
 			s != 2;
 			s = dfa[s][ise ^ in(r = buf_get(curb, ise + p++))]
-		)
-			if (p >= curb->limbo + 1
-			|| (r == '\n' && c.count == 0 && ismotion && !ise))
-				break;
+		) {
+			if (p >= curb->limbo + 1) break;
+			if (r == '\n' && c.count == 0 && ismotion && !ise) break;
+		}
 	m->end = ismotion && ise ? p : p-1;
 	return 0;
 }
