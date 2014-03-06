@@ -312,6 +312,13 @@ eb_commit(eb), mode = Command;
 		eb_ins(eb, curwin->cu++, r), nins++;
 }
 
+@ Switching to insertion mode is acheived by changing the global editor mode
+and resetting the insertion state.
+
+@<Switch to insertion mode@>=
+cins = 1, nins = 0;
+mode = Insert;
+
 @* Motion commands. They can be used as parameters for destructive commands,
 they almost always have two semantics, one when they are used bare
 to move the cursor and one when they are used as parameter.  All motion
@@ -811,29 +818,40 @@ union {
 ['b'] = Mtn(0, m_bB), ['B'] = Mtn(0, m_bB),@/
 ['{'] = Mtn(0, m_par), ['}'] = Mtn(0, m_par),@/
 ['%'] = Mtn(0, m_match),@/
-['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_x),@/
+['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_d),@/
+['c'] = Act(CHasMotion, a_c),@/
 [CTRL('W')] = Act(0, a_write),
 
 @ @<Subr...@>=
-static int a_d(char buf, Cmd c, Cmd mc)
+static int delete(char buf, int count, Cmd mc)
 {
 	Motion m = {curwin->cu, 0, 0};
 	if (mc.count == 0) mc.count = 1;
-	mc.count *= c.count;
+	mc.count *= count;
 	if (keys[mc.chr].motion(1, mc, &m)) return 1;
 	eb_yank(curwin->eb, curwin->cu = m.beg, m.end, 0);
 	eb_del(curwin->eb, m.beg, m.end);
+	return 0;
+}
+
+static int a_d(char buf, Cmd c, Cmd mc)
+{
+	if (c.chr == 'x') mc = (Cmd){1, 'l', 0};
+	if (delete(buf, c.count, mc)) return 1;
 	eb_commit(curwin->eb);
 	return 0;
 }
 
-@ @<Subr...@>=
-static int a_x(char buf, Cmd c, Cmd mc)
-{@+ return a_d(buf, (Cmd){1, 'd', 0}, (Cmd){c.count, 'l', 0});@+ }
+static int a_c(char buf, Cmd c, Cmd mc)
+{
+	if (delete(buf, c.count, mc)) return 1;
+	@<Switch to insertion mode@>;
+	return 0;
+}
 
 @ @<Predecl...@>=
 static int a_d(char, Cmd, Cmd);
-static int a_x(char, Cmd, Cmd);
+static int a_c(char, Cmd, Cmd);
 
 @ @<Subr...@>=
 static int a_write(char buf, Cmd c, Cmd mc)
@@ -860,8 +878,8 @@ static void docmd(char buf, Cmd c, Cmd m)
 			curwin->cu = buf_eol(curb, curwin->cu);
 		if (c.chr == 'I')
 			curwin->cu = blkspn(buf_bol(curb, curwin->cu));
-		nins = 0, cins = c.count;
-		mode = Insert;
+		@<Switch to insertion mode@>;
+		cins = c.count; // repeat according to the command count
 		if (c.chr == 'o') insert('\n');
 		return;
 	}
