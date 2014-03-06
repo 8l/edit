@@ -306,7 +306,7 @@ eb_commit(eb), mode = Command;
 	eb_ins(eb, curwin->cu, r), nins++;
 	for (
 		unsigned bol = buf_bol(curb, curwin->cu++);
-		risblank(r = buf_get(curb, bol));
+		r = buf_get(curb, bol), risblank(r);
 		bol++
 	)
 		eb_ins(eb, curwin->cu++, r), nins++;
