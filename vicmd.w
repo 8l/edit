@@ -823,28 +823,37 @@ union {
 [CTRL('W')] = Act(0, a_write),
 
 @ @<Subr...@>=
-static int delete(char buf, int count, Cmd mc)
+static int yank(Motion *m, char buf, unsigned count, Cmd mc)
 {
-	Motion m = {curwin->cu, 0, 0};
 	if (mc.count == 0) mc.count = 1;
 	mc.count *= count;
-	if (keys[mc.chr].motion(1, mc, &m)) return 1;
-	eb_yank(curwin->eb, curwin->cu = m.beg, m.end, 0);
-	eb_del(curwin->eb, m.beg, m.end);
+	*m = (Motion){curwin->cu, 0, 0};
+	if (keys[mc.chr].motion(1, mc, m)) return 1;
+	eb_yank(curwin->eb, m->beg, m->end, 0);
 	return 0;
 }
 
 static int a_d(char buf, Cmd c, Cmd mc)
 {
+	Motion m;
+
 	if (c.chr == 'x') mc = (Cmd){1, 'l', 0};
-	if (delete(buf, c.count, mc)) return 1;
+	if (yank(&m, buf, c.count, mc)) return 1;
+	eb_del(curwin->eb, curwin->cu = m.beg, m.end);
 	eb_commit(curwin->eb);
 	return 0;
 }
 
 static int a_c(char buf, Cmd c, Cmd mc)
 {
-	if (delete(buf, c.count, mc)) return 1;
+	Motion m;
+
+	if (yank(&m, buf, c.count, mc)) return 1;
+	if (m.linewise) {
+		m.beg = blkspn(m.beg), m.end--;
+		assert(buf_get(curb, m.end) == '\n');
+	}
+	eb_del(curwin->eb, curwin->cu = m.beg, m.end);
 	@<Switch to insertion mode@>;
 	return 0;
 }
