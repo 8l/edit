@@ -263,6 +263,13 @@ this insert needs to be done.
 static unsigned nins; /* length of the current insert */
 static unsigned short cins; /* count of the current insert */
 
+@ The switch to insertion mode needs to initialize these variables and commute
+the global editing mode.
+
+@<Switch to insertion mode@>=
+cins = 1, nins = 0;
+mode = Insert;
+
 @ When running in insertion mode, the runes are directly written in the current
 buffer.  We need to take care of special runes which have a distinguished
 meaning.  The key |GKEsc| leaves the insertion mode and goes back to command
@@ -311,13 +318,6 @@ eb_commit(eb), mode = Command;
 	)
 		eb_ins(eb, curwin->cu++, r), nins++;
 }
-
-@ Switching to insertion mode is acheived by changing the global editor mode
-and resetting the insertion state.
-
-@<Switch to insertion mode@>=
-cins = 1, nins = 0;
-mode = Insert;
 
 @* Motion commands. They can be used as parameters for destructive commands,
 they almost always have two semantics, one when they are used bare
