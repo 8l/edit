@@ -25,6 +25,7 @@ static int nwins;
 static struct gui *g;
 static GFont font;
 static int fwidth, fheight;
+static int tw;
 
 /* win_init - Initialize the module using [gui] as a
  * graphical backed.
@@ -32,10 +33,18 @@ static int fwidth, fheight;
 void
 win_init(struct gui *gui)
 {
+	Rune r[16];
+	int i;
+
 	g = gui;
 
 	g->init();
 	g->getfont(&font);
+
+	/* initialize tab width */
+	for (i = 0; i < TabWidth && i < 16; i++)
+		r[i] = ' ';
+	tw = g->textwidth(r, i);
 
 	/* the gui module does not give a way to access the screen
 	 * dimension, instead, the first event generated will always
@@ -221,9 +230,6 @@ line(W *w, unsigned off, LineFn f, void *data)
 		r = buf_get(&w->eb->b, off);
 
 		if (r == '\t') {
-			int tw;
-
-			tw = TabWidth * font.width;
 			rw = tw - x % tw;
 		} else if (r == '\n') {
 			rw = 0;

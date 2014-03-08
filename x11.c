@@ -11,7 +11,8 @@
 void die(char *);
 
 //#define FONTNAME "DejaVu Sans Mono:pixelsize=12"
-#define FONTNAME "Liberation Mono:pixelsize=12"
+//#define FONTNAME "Liberation Mono:pixelsize=12"
+#define FONTNAME "Liberation:pixelsize=14"
 
 enum {
 	Width = 640,
