@@ -267,14 +267,13 @@ static unsigned short cins; /* count of the current insert */
 the global editing mode.
 
 @<Switch to insertion mode@>=
-cins = 1, nins = 0;
+nins = 0, cins = 1;
 mode = Insert;
 
 @ When running in insertion mode, the runes are directly written in the current
 buffer.  We need to take care of special runes which have a distinguished
 meaning.  The key |GKEsc| leaves the insertion mode and goes back to command
-mode, |GKBackspace| will erase the previous character if it is part of the
-current insertion.
+mode, |GKBackspace| deletes the last inserted character.
 
 @<Sub...@>=
 static void insert(Rune r)
