@@ -282,7 +282,7 @@ static void insert(Rune r)
 	switch (r) {
 	case GKEsc: @<Repeat insert |cins-1| times; leave insert mode@>; @+break;
 	case GKBackspace:
-		if (nins > 0) {
+		if (nins > 0 && curwin->cu > 0) {
 			eb_del(eb, curwin->cu-1, curwin->cu);
 			curwin->cu--, nins--;
 		}
@@ -886,9 +886,12 @@ static void docmd(char buf, Cmd c, Cmd m)
 			curwin->cu = buf_eol(curb, curwin->cu);
 		if (c.chr == 'I')
 			curwin->cu = blkspn(buf_bol(curb, curwin->cu));
+		if (c.chr == 'O')
+			curwin->cu = buf_bol(curb, curwin->cu);
 		@<Switch to insertion mode@>;
 		cins = c.count; // repeat according to the command count
 		if (c.chr == 'o') insert('\n');
+		if (c.chr == 'O') insert('\n'), curwin->cu--;
 		return;
 	}
 	if (c.chr == 'q'-'a' + 1) {
