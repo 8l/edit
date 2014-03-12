@@ -819,6 +819,9 @@ union {
 ['%'] = Mtn(0, m_match),@/
 ['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_d),@/
 ['c'] = Act(CHasMotion, a_c),@/
+['i'] = Act(0, a_ins), ['I'] = Act(0, a_ins),@/
+['a'] = Act(0, a_ins), ['A'] = Act(0, a_ins),@/
+['o'] = Act(0, a_ins), ['O'] = Act(0, a_ins),@/
 [CTRL('W')] = Act(0, a_write),
 
 @ @<Subr...@>=
@@ -857,9 +860,27 @@ static int a_c(char buf, Cmd c, Cmd mc)
 	return 0;
 }
 
+@ @<Subr...@>=
+static int a_ins(char buf, Cmd c, Cmd mc)
+{
+	(void)buf;@+ (void)mc;
+	if (c.chr == 'a' && curwin->cu != buf_eol(curb, curwin->cu))
+		curwin->cu++;
+	if (c.chr == 'A' || c.chr == 'o')
+		curwin->cu = buf_eol(curb, curwin->cu);
+	if (c.chr == 'I' || c.chr == 'O')
+		curwin->cu = blkspn(buf_bol(curb, curwin->cu));
+	@<Switch to insertion mode@>;
+	cins = c.count; // repeat according to the command count
+	if (c.chr == 'o') insert('\n');
+	if (c.chr == 'O') insert('\n'), curwin->cu -= nins;
+	return 0;
+}
+
 @ @<Predecl...@>=
 static int a_d(char, Cmd, Cmd);
 static int a_c(char, Cmd, Cmd);
+static int a_ins(char, Cmd, Cmd);
 
 @ @<Subr...@>=
 static int a_write(char buf, Cmd c, Cmd mc)
@@ -877,21 +898,6 @@ static void docmd(char buf, Cmd c, Cmd m)
 	if (c.count == 0)
 		c.count = 1;
 
-	if (c.chr == 'i' || c.chr == 'I'
-	|| c.chr == 'a' || c.chr == 'A'
-	|| c.chr == 'o' || c.chr == 'O') {
-		if (c.chr == 'a' && curwin->cu != buf_eol(curb, curwin->cu))
-			curwin->cu++;
-		if (c.chr == 'A' || c.chr == 'o')
-			curwin->cu = buf_eol(curb, curwin->cu);
-		if (c.chr == 'I' || c.chr == 'O')
-			curwin->cu = blkspn(buf_bol(curb, curwin->cu));
-		@<Switch to insertion mode@>;
-		cins = c.count; // repeat according to the command count
-		if (c.chr == 'o') insert('\n');
-		if (c.chr == 'O') insert('\n'), curwin->cu -= nins;
-		return;
-	}
 	if (c.chr == 'q'-'a' + 1) {
 		extern int exiting;
 		exiting = 1;
