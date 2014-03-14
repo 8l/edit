@@ -253,42 +253,54 @@ via a global program variable.
 extern W *curwin;
 
 @* Insertion mode. The switch into the insertion mode is triggered by an
-insertion command; it can be \.i, \.a or \.c for instance.  Some of these
-commands take a count that indicates how many times the typed text must
-be repeated.  To implement this behavior we maintain a variable that gives
-the length of the current insert and one that gives the number of times
-this insert needs to be done.
+insertion command; it can be \.i, \.a or \.c for instance.  Insertions
+can be repeated---either using a count or using the repeat command---so we
+keep track of all the typed runes in a local buffer.
+
+@d MaxInsert 512
 
 @<File local...@>=
-static unsigned nins; /* length of the current insert */
-static unsigned short cins; /* count of the current insert */
+static struct {
+	Rune buf[MaxInsert];
+	unsigned nr; /* number of runes in the buffer */
+	int locked;
+} lasti;
+static unsigned short cnti; /* count of the current insert */
 
-@ The switch to insertion mode needs to initialize these variables and commute
+@ The switch to insertion mode initializes these variables and commutes
 the global editing mode.
 
 @<Switch to insertion mode@>=
-nins = 0, cins = 1;
+if (!lasti.locked)
+	lasti.nr = 0;
+cnti = 1;
 mode = Insert;
 
-@ When running in insertion mode, the runes are directly written in the current
-buffer.  We need to take care of special runes which have a distinguished
-meaning.  The key |GKEsc| leaves the insertion mode and goes back to command
-mode, |GKBackspace| deletes the last inserted character.
+@ The insertion function is in fact a simple interpreter for an editing
+language where commands are runes.  Most runes are simply inserted
+directly in the buffer but some runes need a special action, for example,
+they can delete a rune or adjust the indentation.  To be able to replay an
+insertion we memorize the typed runes in the |lasti| buffer.  Since this
+buffer is fixed size we cancel the recording when the insertion is too
+long.
 
 @<Sub...@>=
 static void insert(Rune r)
 {
 	EBuf *eb = curwin->eb;
+
+	if (!lasti.locked && r != GKEsc) {
+		if (lasti.nr < MaxInsert)
+			lasti.buf[lasti.nr++] = r;
+		else
+			lasti.nr = 0, lasti.locked = 1;
+	}
+
 	switch (r) {
-	case GKEsc: @<Repeat insert |cins-1| times; leave insert mode@>; @+break;
-	case GKBackspace:
-		if (nins > 0 && curwin->cu > 0) {
-			eb_del(eb, curwin->cu-1, curwin->cu);
-			curwin->cu--, nins--;
-		}
-		break;
+	case GKEsc: @<Repeat insert |cnti-1| times; leave insert mode@>; @+break;
+	case GKBackspace: @<Delete one character@>; @+break;
 	case '\n': @<Insert a new line preserving the indentation@>; @+break;
-	default: eb_ins(eb, curwin->cu++, r), nins++;@+break;
+	default: eb_ins(eb, curwin->cu++, r); @+break;
 	}
 }
 
@@ -297,26 +309,30 @@ buffer as being in a clean state by committing it.  This will add the finished
 insertion into the modification log used to undo changes.
 
 @<Repeat insert...@>=
-assert(cins != 0);
-while (--cins)
-	for (unsigned cnt=nins; cnt--;) {
-		r = buf_get(&eb->b, curwin->cu - nins);
-		eb_ins(eb, curwin->cu++, r);
-	}
+lasti.locked = 1;
+assert(cnti != 0);
+while (--cnti)
+	for (unsigned u = 0; u < lasti.nr; u++)
+		insert(lasti.buf[u]);
+lasti.locked = 0;
 if (buf_get(&eb->b, curwin->cu-1) != '\n') curwin->cu--;
 eb_commit(eb), mode = Command;
 
+@ @<Delete one char...@>=
+if (curwin->cu > 0) {
+	eb_del(eb, curwin->cu-1, curwin->cu);
+	curwin->cu--;
+}
+
 @ @d risblank(r) (risascii(r) && isblank(r))
 @<Insert a new line...@>=
-{
-	eb_ins(eb, curwin->cu, r), nins++;
-	for (
-		unsigned bol = buf_bol(curb, curwin->cu++);
-		r = buf_get(curb, bol), risblank(r);
-		bol++
-	)
-		eb_ins(eb, curwin->cu++, r), nins++;
-}
+eb_ins(eb, curwin->cu, '\n');
+for (
+	unsigned p = buf_bol(curb, curwin->cu++);
+	r = buf_get(curb, p), risblank(r);
+	p++
+)
+	eb_ins(eb, curwin->cu++, r);
 
 @* Motion commands. They can be used as parameters for destructive commands,
 they almost always have two semantics, one when they are used bare
@@ -792,7 +808,6 @@ function used to implement them.
 	memory, it is called {\sl limbo}.  Deletions in limbo must work
 	and do nothing.
 
-
 @* Key definitions for motions.
 
 @ @<Other key fields@>=
@@ -863,17 +878,19 @@ static int a_c(char buf, Cmd c, Cmd mc)
 @ @<Subr...@>=
 static int a_ins(char buf, Cmd c, Cmd mc)
 {
+	unsigned cu;
+
 	(void)buf;@+ (void)mc;
 	if (c.chr == 'a' && curwin->cu != buf_eol(curb, curwin->cu))
 		curwin->cu++;
 	if (c.chr == 'A' || c.chr == 'o')
 		curwin->cu = buf_eol(curb, curwin->cu);
 	if (c.chr == 'I' || c.chr == 'O')
-		curwin->cu = blkspn(buf_bol(curb, curwin->cu));
+		cu = curwin->cu = blkspn(buf_bol(curb, curwin->cu));
 	@<Switch to insertion mode@>;
-	cins = c.count; // repeat according to the command count
+	cnti = c.count; // repeat according to the command count
 	if (c.chr == 'o') insert('\n');
-	if (c.chr == 'O') insert('\n'), curwin->cu -= nins;
+	if (c.chr == 'O') insert('\n'), curwin->cu = cu;
 	return 0;
 }
 
