@@ -287,8 +287,6 @@ is too long.
 @<Sub...@>=
 static void insert(Rune r)
 {
-	EBuf *eb = curwin->eb;
-
 	if (!lasti.locked && r != GKEsc) {
 		if (lasti.len < MaxInsert)
 			lasti.buf[lasti.len++] = r;
@@ -300,7 +298,7 @@ static void insert(Rune r)
 	case GKEsc: @<Repeat insert |cnti-1| times; leave insert mode@>; @+break;
 	case GKBackspace: @<Delete one character@>; @+break;
 	case '\n': @<Insert a new line preserving the indentation@>; @+break;
-	default: eb_ins(eb, curwin->cu++, r); @+break;
+	default: eb_ins(curwin->eb, curwin->cu++, r); @+break;
 	}
 }
 
@@ -315,24 +313,24 @@ while (--cnti)
 	for (unsigned u = 0; u < lasti.len; u++)
 		insert(lasti.buf[u]);
 lasti.locked = 0;
-if (buf_get(&eb->b, curwin->cu-1) != '\n') curwin->cu--;
-eb_commit(eb), mode = Command;
+if (buf_get(curb, curwin->cu-1) != '\n') curwin->cu--;
+eb_commit(curwin->eb), mode = Command;
 
 @ @<Delete one char...@>=
 if (curwin->cu > 0) {
-	eb_del(eb, curwin->cu-1, curwin->cu);
+	eb_del(curwin->eb, curwin->cu-1, curwin->cu);
 	curwin->cu--;
 }
 
 @ @d risblank(r) (risascii(r) && isblank(r))
 @<Insert a new line...@>=
-eb_ins(eb, curwin->cu, '\n');
+eb_ins(curwin->eb, curwin->cu, '\n');
 for (
 	unsigned p = buf_bol(curb, curwin->cu++);
 	r = buf_get(curb, p), risblank(r);
 	p++
 )
-	eb_ins(eb, curwin->cu++, r);
+	eb_ins(curwin->eb, curwin->cu++, r);
 
 @* Motion commands. They can be used as parameters for destructive commands,
 they almost always have two semantics, one when they are used bare
