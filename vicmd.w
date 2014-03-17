@@ -252,23 +252,23 @@ via a global program variable.
 @<External...@>=
 extern W *curwin;
 
-@* Insertion mode. The switch into insertion mode is triggered by an
-insertion command; it can be \.i, \.a or \.c for instance.  Insertions can
-be repeated---either using a count or using the repeat command---so we
-keep track of all the typed runes in a local buffer.
+@* Insertion mode.  Insertions can be replayed---either using a count or
+using the repeat command---so we keep track of all the typed runes in the
+local buffer |lasti|.  External code can set |cnti| to repeat the inserted
+text |cnti-1| times when the insertion mode is exited.
 
 @d MaxInsert 512
 
 @<File local...@>=
 static struct {
 	Rune buf[MaxInsert];
-	unsigned len; /* number of runes in the buffer */
+	unsigned len;
 	int locked;
 } lasti;
-static unsigned short cnti; /* count of the current insert */
+static unsigned short cnti;
 
-@ The switch to insertion mode initializes these variables and commutes
-the global editing mode.
+@ Before inserting we must make sure that the state is consistent and
+reset the |lasti| buffer if allowed.
 
 @<Switch to insertion mode@>=
 if (!lasti.locked)
@@ -313,7 +313,9 @@ while (--cnti)
 	for (unsigned u = 0; u < lasti.len; u++)
 		insert(lasti.buf[u]);
 lasti.locked = 0;
-if (buf_get(curb, curwin->cu-1) != '\n') curwin->cu--;
+
+if (buf_get(curb, curwin->cu-1) != '\n')
+	curwin->cu--;
 eb_commit(curwin->eb), mode = Command;
 
 @ @<Delete one char...@>=
