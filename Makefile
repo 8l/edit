@@ -22,7 +22,7 @@ all:
 clean:
 	rm -fr $(OBJDIR)
 
-$(OBJDIR)/.deps: $(wildcard *.[ch])
+$(OBJDIR)/.deps: $(SRCFILES) $(wildcard *.h)
 	@mkdir -p $(@D)
 	@$(CC) -MM $(CFLAGS) *.c \
 		| sed -e "s,\\(.*\\):,$(OBJDIR)/\\1:," > $@
