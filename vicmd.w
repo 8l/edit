@@ -252,9 +252,9 @@ via a global program variable.
 @<External...@>=
 extern W *curwin;
 
-@* Insertion mode. The switch into the insertion mode is triggered by an
-insertion command; it can be \.i, \.a or \.c for instance.  Insertions
-can be repeated---either using a count or using the repeat command---so we
+@* Insertion mode. The switch into insertion mode is triggered by an
+insertion command; it can be \.i, \.a or \.c for instance.  Insertions can
+be repeated---either using a count or using the repeat command---so we
 keep track of all the typed runes in a local buffer.
 
 @d MaxInsert 512
@@ -262,7 +262,7 @@ keep track of all the typed runes in a local buffer.
 @<File local...@>=
 static struct {
 	Rune buf[MaxInsert];
-	unsigned nr; /* number of runes in the buffer */
+	unsigned len; /* number of runes in the buffer */
 	int locked;
 } lasti;
 static unsigned short cnti; /* count of the current insert */
@@ -272,17 +272,17 @@ the global editing mode.
 
 @<Switch to insertion mode@>=
 if (!lasti.locked)
-	lasti.nr = 0;
+	lasti.len = 0;
 cnti = 1;
 mode = Insert;
 
 @ The insertion function is in fact a simple interpreter for an editing
 language where commands are runes.  Most runes are simply inserted
 directly in the buffer but some runes need a special action, for example,
-they can delete a rune or adjust the indentation.  To be able to replay an
-insertion we memorize the typed runes in the |lasti| buffer.  Since this
-buffer is fixed size we cancel the recording when the insertion is too
-long.
+they can delete one character or adjust the indentation.  To be able to
+replay an insertion we memorize the typed runes in the |lasti| buffer.
+Since this buffer is fixed size we cancel the recording when the insertion
+is too long.
 
 @<Sub...@>=
 static void insert(Rune r)
@@ -290,10 +290,10 @@ static void insert(Rune r)
 	EBuf *eb = curwin->eb;
 
 	if (!lasti.locked && r != GKEsc) {
-		if (lasti.nr < MaxInsert)
-			lasti.buf[lasti.nr++] = r;
+		if (lasti.len < MaxInsert)
+			lasti.buf[lasti.len++] = r;
 		else
-			lasti.nr = 0, lasti.locked = 1;
+			lasti.len = 0, lasti.locked = 1;
 	}
 
 	switch (r) {
@@ -312,7 +312,7 @@ insertion into the modification log used to undo changes.
 lasti.locked = 1;
 assert(cnti != 0);
 while (--cnti)
-	for (unsigned u = 0; u < lasti.nr; u++)
+	for (unsigned u = 0; u < lasti.len; u++)
 		insert(lasti.buf[u]);
 lasti.locked = 0;
 if (buf_get(&eb->b, curwin->cu-1) != '\n') curwin->cu--;
