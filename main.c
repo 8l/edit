@@ -51,6 +51,7 @@ main(int ac, char *av[])
 			memmove(buf, buf+ins, in-ins);
 			beg = buf + (in-ins);
 		}
+		eb_commit(eb);
 		fclose(fp);
 	}
 	eb->path = "dummy.txt"; // to avoid disasters
