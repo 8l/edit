@@ -912,6 +912,13 @@ static int a_write(char, Cmd, Cmd);
 @ @<Subr...@>=
 static void docmd(char buf, Cmd c, Cmd m)
 {
+	static char lastbuf;
+	static Cmd lastc, lastm;
+	static int redo;
+
+	@<Handle the repeat command@>;
+	@<Handle the undo command@>;
+
 	if (c.count == 0)
 		c.count = 1;
 
@@ -924,8 +931,55 @@ static void docmd(char buf, Cmd c, Cmd m)
 		Motion m = {curwin->cu, 0, 0};
 		if (keys[c.chr].motion(0, c, &m) == 0)
 			curwin->cu = m.end;
-	} else if (keys[c.chr].cmd != 0)
-		keys[c.chr].cmd(buf, c, m);
+	} else if (keys[c.chr].cmd != 0) {
+		redo = 0;
+
+		if (keys[c.chr].cmd(buf, c, m))
+			return;
+
+		lastbuf = buf;
+		lastc = c;
+		lastm = m;
+	}
+}
+
+@ @<Handle the repeat command@>=
+if (c.chr == '.') {
+	Cmd repc, repm;
+
+	if (lastc.chr == 0) return;
+	assert(lastc.chr != '.');
+
+	repc = lastc;
+	repm = lastm;
+	if (c.count) {
+		repm.count = 1;
+		repc.count = c.count;
+	}
+
+	lastf.locked = 1;
+	lasti.locked = 1;
+
+	docmd(lastbuf, repc, repm);
+
+	if (mode == Insert) {
+		unsigned p = 0;
+
+		if (lastc.chr == 'o' || lastc.chr == 'O')
+			p = 1;
+		while (p < lasti.len)
+			insert(lasti.buf[p++]);
+		insert(GKEsc);
+	}
+
+	lasti.locked = 0;
+	lastf.locked = 0;
+	return;
+}
+
+@ @<Handle the undo command@>=
+if (c.chr == 'u') {
+	return;
 }
 
 @** Index.
