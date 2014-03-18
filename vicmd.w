@@ -917,7 +917,6 @@ static void docmd(char buf, Cmd c, Cmd m)
 	static int redo;
 
 	@<Handle the repeat command@>;
-	@<Handle the undo command@>;
 
 	if (c.count == 0)
 		c.count = 1;
@@ -931,12 +930,14 @@ static void docmd(char buf, Cmd c, Cmd m)
 		Motion m = {curwin->cu, 0, 0};
 		if (keys[c.chr].motion(0, c, &m) == 0)
 			curwin->cu = m.end;
-	} else if (keys[c.chr].cmd != 0) {
-		redo = 0;
+		return;
+	}
 
+	@<Handle the undo command@>;
+
+	if (keys[c.chr].cmd != 0) {
 		if (keys[c.chr].cmd(buf, c, m))
 			return;
-
 		lastbuf = buf;
 		lastc = c;
 		lastm = m;
@@ -949,6 +950,9 @@ if (c.chr == '.') {
 
 	if (lastc.chr == 0) return;
 	assert(lastc.chr != '.');
+
+	if (lastc.chr == 'u')
+		redo = !redo;
 
 	repc = lastc;
 	repm = lastm;
@@ -979,7 +983,11 @@ if (c.chr == '.') {
 
 @ @<Handle the undo command@>=
 if (c.chr == 'u') {
+	redo = !redo;
+	eb_undo(curwin->eb, redo, &curwin->cu);
+	lastc = c;
 	return;
 }
+redo = 0; // for any other command, reset the |redo| flag
 
 @** Index.
