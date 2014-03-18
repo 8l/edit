@@ -22,7 +22,7 @@ then executed on the currently focused window.  We try to follow the
 @<Local types@>@/
 @<Predeclared functions@>@/
 @<File local variables@>@/
-@<Subroutines and motion commands@>@/
+@<Subroutines and commands@>@/
 @<Definition of the parsing function |cmd_parse|@>
 
 @ We need to edit buffers, have the rune and window types available. 
@@ -808,48 +808,34 @@ function used to implement them.
 	memory, it is called {\sl limbo}.  Deletions in limbo must work
 	and do nothing.
 
-@* Key definitions for motions.
+@* Edition commands.  Contrary to motion commands these ones will act
+on the buffer to insert and delete text.  We have to be careful to
+commit the modifications after each successful execution of a command
+so that the undo command behaves properly.  Like motion commands, an
+error code is returned by edition commands, 0 significates success while
+1 indicates an error.
 
-@ @<Other key fields@>=
-union {
-	int @[@] (*motion)(int, Cmd, Motion *);
-	int @[@] (*cmd)(char, Cmd, Cmd);
-};
+@ The delete and change \.{vi} commands have a similar action expect
+that the latter will switch to insertion mode.  Both store the deleted
+text into a yank buffer, so we define a helper |yank| function to
+factor similar code out.  This function executes a motion command and
+yanks the text spanned over by the motion.
 
-@ @d Mtn(flags, f) {@+CIsMotion|flags, .motion = f}
-@d Act(flags, f) {@+flags, .cmd = f}
-@d CTRL(x) ((x) ^ 64)
-@<Key def...@>=
-['h'] = Mtn(0, m_hl), ['l'] = Mtn(0, m_hl),@/
-['j'] = Mtn(0,m_jk), ['k'] = Mtn(0, m_jk),@/
-['t'] = Mtn(CHasArg, m_find), ['f'] = Mtn(CHasArg, m_find),@/
-['T'] = Mtn(CHasArg, m_find), ['F'] = Mtn(CHasArg, m_find),@/
-[','] = Mtn(0, m_repf), [';'] = Mtn(0, m_repf),@/
-['0'] = Mtn(0, m_bol), ['^'] = Mtn(0, m_bol),@/
-['$'] = Mtn(0, m_eol), ['_'] = Mtn(0, m_line),@/
-['w'] = Mtn(0, m_ewEW), ['W'] = Mtn(0, m_ewEW),@/
-['e'] = Mtn(0, m_ewEW), ['E'] = Mtn(0, m_ewEW),@/
-['b'] = Mtn(0, m_bB), ['B'] = Mtn(0, m_bB),@/
-['{'] = Mtn(0, m_par), ['}'] = Mtn(0, m_par),@/
-['%'] = Mtn(0, m_match),@/
-['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_d),@/
-['c'] = Act(CHasMotion, a_c),@/
-['i'] = Act(0, a_ins), ['I'] = Act(0, a_ins),@/
-['a'] = Act(0, a_ins), ['A'] = Act(0, a_ins),@/
-['o'] = Act(0, a_ins), ['O'] = Act(0, a_ins),@/
-[CTRL('W')] = Act(0, a_write),
-
-@ @<Subr...@>=
+@<Subr...@>=
 static int yank(Motion *m, char buf, unsigned count, Cmd mc)
 {
 	if (mc.count == 0) mc.count = 1;
 	mc.count *= count;
 	*m = (Motion){curwin->cu, 0, 0};
+	assert(keys[mc.chr].motion);
 	if (keys[mc.chr].motion(1, mc, m)) return 1;
 	eb_yank(curwin->eb, m->beg, m->end, 0);
 	return 0;
 }
 
+@ If the motion fails, both change and delete commands also fail.
+
+@<Subr...@>=
 static int a_d(char buf, Cmd c, Cmd mc)
 {
 	Motion m;
@@ -875,12 +861,31 @@ static int a_c(char buf, Cmd c, Cmd mc)
 	return 0;
 }
 
-@ @<Subr...@>=
+@ The write command simply uses the function exposed by the buffer
+module.
+
+@<Subr...@>=
+static int a_write(char buf, Cmd c, Cmd mc)
+{
+	(void)buf;@+ (void)c;@+ (void)mc;
+	return eb_write(curwin->eb);
+}
+
+@ The insertion commands are all treated in the following procedure,
+they all switch to insertion modes but some need to move the cursor a
+bit before doing so.  The only tricky case in this code is the handling
+of the \.O command. We first split the current line at the end of
+the indentation then rely on the code in |@<Insert a new line...@>|
+to restore it, effectively moving the current line down in the buffer.
+The cursor is then placed appropriately on the freshly created line.
+This code works even when there is a count because the initial
+|insert('\n')| is correctly repeated by the insertion code.
+
+@<Subr...@>=
 static int a_ins(char buf, Cmd c, Cmd mc)
 {
 	unsigned cu;
 
-	(void)buf;@+ (void)mc;
 	if (c.chr == 'a' && curwin->cu != buf_eol(curb, curwin->cu))
 		curwin->cu++;
 	if (c.chr == 'A' || c.chr == 'o')
@@ -894,22 +899,9 @@ static int a_ins(char buf, Cmd c, Cmd mc)
 	return 0;
 }
 
-@ @<Predecl...@>=
-static int a_d(char, Cmd, Cmd);
-static int a_c(char, Cmd, Cmd);
-static int a_ins(char, Cmd, Cmd);
+@ xxx
 
-@ @<Subr...@>=
-static int a_write(char buf, Cmd c, Cmd mc)
-{
-	(void)buf;@+ (void)c;@+ (void)mc;
-	return eb_write(curwin->eb);
-}
-
-@ @<Predecl...@>=
-static int a_write(char, Cmd, Cmd);
-
-@ @<Subr...@>=
+@<Subr...@>=
 static void docmd(char buf, Cmd c, Cmd m)
 {
 	static char lastbuf;
@@ -989,5 +981,49 @@ if (c.chr == 'u') {
 	return;
 }
 redo = 0; // for any other command, reset the |redo| flag
+
+
+@* Key array definition.  This is the boring list of all commands
+implemented above.  It also contains different flags used during
+the parsing.
+
+@ @<Local types@>=
+typedef int @[@] motion_t(int, Cmd, Motion *);
+typedef int @[@] cmd_t(char, Cmd, Cmd);
+
+@ We need to predeclare all actions in order to use them in the |keys|
+array below.
+
+@<Predecl...@>=
+static cmd_t a_d, a_c, a_ins, a_write;
+
+@ @<Other key fields@>=
+union {
+	motion_t *motion;
+	cmd_t *cmd;
+};
+
+@ @d Mtn(flags, f) {@+CIsMotion|flags, .motion = f}
+@d Act(flags, f) {@+flags, .cmd = f}
+@d CTRL(x) ((x) ^ 64)
+@<Key def...@>=
+['h'] = Mtn(0, m_hl), ['l'] = Mtn(0, m_hl),@/
+['j'] = Mtn(0,m_jk), ['k'] = Mtn(0, m_jk),@/
+['t'] = Mtn(CHasArg, m_find), ['f'] = Mtn(CHasArg, m_find),@/
+['T'] = Mtn(CHasArg, m_find), ['F'] = Mtn(CHasArg, m_find),@/
+[','] = Mtn(0, m_repf), [';'] = Mtn(0, m_repf),@/
+['0'] = Mtn(0, m_bol), ['^'] = Mtn(0, m_bol),@/
+['$'] = Mtn(0, m_eol), ['_'] = Mtn(0, m_line),@/
+['w'] = Mtn(0, m_ewEW), ['W'] = Mtn(0, m_ewEW),@/
+['e'] = Mtn(0, m_ewEW), ['E'] = Mtn(0, m_ewEW),@/
+['b'] = Mtn(0, m_bB), ['B'] = Mtn(0, m_bB),@/
+['{'] = Mtn(0, m_par), ['}'] = Mtn(0, m_par),@/
+['%'] = Mtn(0, m_match),@/
+['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_d),@/
+['c'] = Act(CHasMotion, a_c),@/
+['i'] = Act(0, a_ins), ['I'] = Act(0, a_ins),@/
+['a'] = Act(0, a_ins), ['A'] = Act(0, a_ins),@/
+['o'] = Act(0, a_ins), ['O'] = Act(0, a_ins),@/
+[CTRL('W')] = Act(0, a_write),
 
 @** Index.
