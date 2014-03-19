@@ -81,8 +81,7 @@ log_delete(Log *l, Buf *b, unsigned p0, unsigned p1)
 void
 log_commit(Log *l)
 {
-	//if (l->type != Commit)
-		pushlog(l, Commit);
+	pushlog(l, Commit);
 }
 
 void
@@ -96,8 +95,7 @@ log_undo(Log *l, Buf *b, Log *redo, unsigned *pp)
 
 	top = l;
 	l = l->next;
-	if (!l)
-		return;
+	assert(l);
 
 	while (l->type != Commit) {
 		p0 = l->p0;
@@ -234,8 +232,10 @@ eb_undo(EBuf *eb, int undo, unsigned *pp)
 	else
 		u = eb->redo, r = eb->undo;
 
-	log_undo(u, &eb->b, r, pp);
-	rebase(&eb->ml, r->next);
+	if (u->next != 0) {
+		log_undo(u, &eb->b, r, pp);
+		rebase(&eb->ml, r->next);
+	}
 }
 
 void
