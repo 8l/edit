@@ -209,7 +209,7 @@ eb_ins_utf8(EBuf *eb, unsigned p0, unsigned char *data, int len)
 
 	total = 0;
 	while ((rd = utf8_decode_rune(&r, data, len))) {
-		eb_ins(eb, p0++, r);
+		buf_ins(&eb->b, p0++, r);
 		data += rd;
 		len -= rd;
 		total += rd;
