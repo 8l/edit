@@ -871,21 +871,29 @@ static int a_write(char buf, Cmd c, Cmd mc)
 	return eb_write(curwin->eb);
 }
 
-@ The insertion commands are all treated in the following procedure,
-they all switch to insertion modes but some need to move the cursor a
-bit before doing so.  The only tricky case in this code is the handling
-of the \.O command. We first split the current line at the end of
-the indentation then rely on the code in |@<Insert a new line...@>|
-to restore it, effectively moving the current line down in the buffer.
-The cursor is then placed appropriately on the freshly created line.
-This code works even when there is a count because the initial
-|insert('\n')| is correctly repeated by the insertion code.
+@ @<Subr...@>=
+static int a_exit(char buf, Cmd c, Cmd mc)
+{
+	extern int exiting;
+	(void)buf;@+ (void)c;@+ (void)mc;
+	return (exiting = 1);
+}
+
+@ The insertion commands are all treated in the following procedure.
+The only tricky case in this code is the handling of the \.O command. We
+first split the current line at the end of the indentation then rely
+on the code in |@<Insert a new line...@>| to restore it, effectively
+creating a new line above the current one.  The cursor is then placed
+after the indentation on the freshly created line.  This code works even
+when there is a count because the initial |insert('\n')| is correctly
+repeated by the insertion code.
 
 @<Subr...@>=
 static int a_ins(char buf, Cmd c, Cmd mc)
 {
 	unsigned cu;
 
+	(void) buf; @+(void) mc;
 	if (c.chr == 'a' && curwin->cu != buf_eol(curb, curwin->cu))
 		curwin->cu++;
 	if (c.chr == 'A' || c.chr == 'o')
@@ -899,7 +907,12 @@ static int a_ins(char buf, Cmd c, Cmd mc)
 	return 0;
 }
 
-@ xxx
+@ Most commands have their action defined by the |keys| array, so
+we simply need to call this action.  The repeat and the undo commands
+are treated explicitely here because they need more context than
+regular commands.  To implement these two commands, each successfully
+executed action together with the {\sl undo direction} are remembered
+in static variables.
 
 @<Subr...@>=
 static void docmd(char buf, Cmd c, Cmd m)
@@ -908,16 +921,9 @@ static void docmd(char buf, Cmd c, Cmd m)
 	static Cmd lastc, lastm;
 	static int redo;
 
-	@<Handle the repeat command@>;
-
-	if (c.count == 0)
+	if (c.count == 0 && c.chr != '.')
 		c.count = 1;
 
-	if (c.chr == 'q'-'a' + 1) {
-		extern int exiting;
-		exiting = 1;
-		return;
-	}
 	if (keys[c.chr].flags & CIsMotion) {
 		Motion m = {curwin->cu, 0, 0};
 		if (keys[c.chr].motion(0, c, &m) == 0)
@@ -925,29 +931,47 @@ static void docmd(char buf, Cmd c, Cmd m)
 		return;
 	}
 
+	@<Handle the repeat command@>;
 	@<Handle the undo command@>;
 
 	if (keys[c.chr].cmd != 0) {
 		if (keys[c.chr].cmd(buf, c, m))
 			return;
-		lastbuf = buf;
-		lastc = c;
-		lastm = m;
+		lastbuf = buf, lastc = c, lastm = m;
 	}
 }
 
-@ @<Handle the repeat command@>=
+@ The mechanism used to implement infinite undo is the same as in
+Keith Bostic's \.{vi}. It makes the \.u command behave like in the
+historic implementation.  The standard behavior for this command
+is to alternate between two states before and after the last change.
+To access more of the undo history the user has to use \.u
+once and then repeat the undo command using the \.. command.
+Similarly, to redo changes, \.u is used once to commute the undo
+direction and then chained with a sequence of \.. commands.  The
+|redo| variable stores the current undo direction, if it is 1 the
+editor is redoing, if it is 0 the editor is undoing.
+
+@ This implementation of the repeat command is very close to the
+\.{POSIX} specification.  The special case for the \.u command is
+explained above.  We also need to make sure that |lastf| is locked
+because the undo command does not override the last character
+searched by the \.t and \.f family of commands.  The specification
+also mandates that if a count is specified it overwrites both the
+count of the edition and the one of the motion commands repeated.
+
+@<Handle the repeat command@>=
 if (c.chr == '.') {
-	Cmd repc, repm;
+	Cmd repc = lastc, repm = lastm;
 
-	if (lastc.chr == 0) return;
-	assert(lastc.chr != '.');
+	if (repc.chr == 0) return;
+	assert(repc.chr != '.');
 
-	if (lastc.chr == 'u')
+	if (repc.chr == 'u')
 		redo = !redo;
+	else
+		assert(redo == 0);
 
-	repc = lastc;
-	repm = lastm;
 	if (c.count) {
 		repm.count = 1;
 		repc.count = c.count;
@@ -957,30 +981,40 @@ if (c.chr == '.') {
 	lasti.locked = 1;
 
 	docmd(lastbuf, repc, repm);
-
-	if (mode == Insert) {
-		unsigned p = 0;
-
-		if (lastc.chr == 'o' || lastc.chr == 'O')
-			p = 1;
-		while (p < lasti.len)
-			insert(lasti.buf[p++]);
-		insert(GKEsc);
-	}
+	if (mode == Insert)
+		@<Insert runes stored in the |lasti| buffer@>;
 
 	lasti.locked = 0;
 	lastf.locked = 0;
 	return;
 }
 
-@ @<Handle the undo command@>=
+@ If the last executed command is \.o or \.O one newline has already
+been inserted by the command itself so we start inserting saved runes
+only from position 1.
+
+@<Insert runes stored...@>=
+{	unsigned p = 0;
+
+	if (lastc.chr == 'o' || lastc.chr == 'O')
+		p = 1;
+	while (p < lasti.len)
+		insert(lasti.buf[p++]);
+	insert(GKEsc);
+}
+
+@ The undo command is trivially implemented using the function provided
+by the buffer module.  To implement the alternating behavior, |redo| is
+commuted at each invocation.
+
+@<Handle the undo command@>=
 if (c.chr == 'u') {
 	redo = !redo;
 	eb_undo(curwin->eb, redo, &curwin->cu);
 	lastc = c;
 	return;
-}
-redo = 0; // for any other command, reset the |redo| flag
+} else
+	redo = 0; // for any other command, reset the |redo| flag
 
 
 @* Key array definition.  This is the boring list of all commands
@@ -995,7 +1029,7 @@ typedef int @[@] cmd_t(char, Cmd, Cmd);
 array below.
 
 @<Predecl...@>=
-static cmd_t a_d, a_c, a_ins, a_write;
+static cmd_t a_d, a_c, a_ins, a_write, a_exit;
 
 @ @<Other key fields@>=
 union {
@@ -1024,6 +1058,6 @@ union {
 ['i'] = Act(0, a_ins), ['I'] = Act(0, a_ins),@/
 ['a'] = Act(0, a_ins), ['A'] = Act(0, a_ins),@/
 ['o'] = Act(0, a_ins), ['O'] = Act(0, a_ins),@/
-[CTRL('W')] = Act(0, a_write),
+[CTRL('W')] = Act(0, a_write), [CTRL('Q')] = Act(0, a_exit),
 
 @** Index.
