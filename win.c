@@ -21,7 +21,6 @@ static void draw(W *w);
 static void lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li);
 
 static W wins[MaxWins];
-static int nwins;
 static struct gui *g;
 static GFont font;
 static int fwidth, fheight;
@@ -56,17 +55,22 @@ win_init(struct gui *gui)
 W *
 win_new(EBuf *eb)
 {
+	W *w;
+
 	assert(eb);
 
-	if (nwins >= MaxWins)
-		return 0;
+	for (w = wins;; w++) {
+		if (w - wins >= MaxWins)
+			return 0;
+		if (!w->gw)
+			break;
+	}
 
-	memset(&wins[nwins], 0, sizeof(W));
-	wins[nwins].eb = eb;
-	wins[nwins].gw = g->newwin(0, 0, fwidth, fheight);
-	wins[nwins].hrig = 500;
+	w->eb = eb;
+	w->gw = g->newwin(0, 0, fwidth, fheight);
+	w->hrig = 500;
 
-	return &wins[nwins++];
+	return w;
 }
 
 /* win_delete - Delete a window created by win_new.
@@ -75,12 +79,11 @@ void
 win_delete(W *w)
 {
 	assert(w >= wins);
-	assert(w < wins+nwins);
-
-	nwins--;
+	assert(w < wins+MaxWins);
 
 	g->delwin(w->gw);
-	memmove(w, w+1, (nwins - (wins-w)) * sizeof(W));
+	memset(w, 0, sizeof(W));
+	w->gw = 0;
 }
 
 /* win_redraw - Fully redraw a window and display it.
@@ -92,9 +95,11 @@ win_redraw(W *w)
 
 	width = w->gw->w;
 	g->drawrect(w->gw, 0, 0, width, fheight, GPaleYellow);
+#if 0
 	if (w-wins < nwins-1)
 		/* if not leftmost window, draw the border */
 		g->drawrect(w->gw, width-1, 0, 1, fheight, GBlack);
+#endif
 	draw(w);
 	g->putwin(w->gw);
 }
@@ -113,16 +118,17 @@ win_resize_frame(int w, int h)
 		fheight = h;
 	}
 
-	for (rig=0, pw=wins; pw-wins<nwins; pw++)
+	for (rig=0, pw=wins; pw-wins<MaxWins; pw++)
 		rig += pw->hrig;
 
-	for (x=0, pw=wins; pw-wins<nwins; pw++) {
-		pw->height = fheight;
-		ww = (fwidth * pw->hrig) / rig;
-		g->movewin(pw->gw, x, 0, ww, fheight);
-		win_redraw(pw);
-		x += ww+1;
-	}
+	for (x=0, pw=wins; pw-wins<MaxWins; pw++)
+		if (pw->gw) {
+			pw->height = fheight;
+			ww = (fwidth * pw->hrig) / rig;
+			g->movewin(pw->gw, x, 0, ww, fheight);
+			win_redraw(pw);
+			x += ww /* +1 */;
+		}
 }
 
 /* win_redraw_frame - Redraw the whole frame.
