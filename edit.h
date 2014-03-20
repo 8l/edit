@@ -34,7 +34,7 @@ void eb_commit(EBuf *);
 void eb_undo(EBuf *, int, unsigned *);
 void eb_yank(EBuf *, unsigned, unsigned, YBuf *);
 void eb_setmark(EBuf *, Rune, unsigned);
-void eb_getmark(EBuf *, Rune, unsigned *);
+unsigned eb_getmark(EBuf *, Rune);
 int eb_write(EBuf *);
 
 #endif /* ndef EDIT_H */

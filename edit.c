@@ -287,18 +287,16 @@ eb_setmark(EBuf *eb, Rune name, unsigned pos)
 	m->p = pos;
 }
 
-void
-eb_getmark(EBuf *eb, Rune name, unsigned *pos)
+unsigned
+eb_getmark(EBuf *eb, Rune name)
 {
 	Mark *m;
 
 	for (m=eb->ml; m; m=m->next)
-		if (m->r == name) {
-			*pos = m->p;
-			return;
-		}
+		if (m->r == name)
+			return m->p;
 
-	*pos = -1u;
+	return -1u;
 }
 
 int
