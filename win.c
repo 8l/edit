@@ -33,18 +33,13 @@ static int tw;
 void
 win_init(struct gui *gui)
 {
-	Rune r[16];
-	int i;
-
 	g = gui;
 
 	g->init();
 	g->getfont(&font);
 
 	/* initialize tab width */
-	for (i = 0; i < TabWidth && i < 16; i++)
-		r[i] = ' ';
-	tw = g->textwidth(r, i);
+	tw = TabWidth * g->textwidth((Rune[1]){' '}, 1);
 
 	/* the gui module does not give a way to access the screen
 	 * dimension, instead, the first event generated will always
