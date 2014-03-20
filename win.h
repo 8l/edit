@@ -12,6 +12,7 @@ enum {
 	FScale = 16384,     /* fixed point scale for fractions */
 	TabWidth = 8,       /* tabulation width */
 	MaxWidth = 500,     /* maximum width of the screen */
+	HMargin = 12,       /* horizontal margin */
 };
 
 struct w {

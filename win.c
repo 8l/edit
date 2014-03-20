@@ -237,13 +237,13 @@ line(W *w, unsigned off, LineFn f, void *data)
 		} else
 			rw = g->textwidth(&r, 1);
 
-		if (x+rw > w->gw->w)
+		if (HMargin+x+rw > w->gw->w)
 		if (x != 0) { /* force progress */
 			x = 0;
 			l++;
 		}
 
-		if (!f(data, off, r, x, rw, l))
+		if (!f(data, off, r, HMargin+x, rw, l))
 			break;
 	}
 
@@ -313,7 +313,7 @@ drawfn(void *data, unsigned off, Rune r, int x, int rw, int sl)
 	y = (ds->begl + sl) * font.height + font.ascent;
 
 	if (ds->curl != sl) { /* need a flush, we changed screen line */
-		assert(x == 0);
+		assert(x == HMargin);
 		ds->curl = sl;
 		pushrune(ds->w->gw, '\n', 0, 0, 0, 0);
 		if (y + font.descent > ds->w->height)
