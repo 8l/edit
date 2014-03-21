@@ -307,7 +307,7 @@ drawfn(void *data, unsigned off, Rune r, int x, int rw, int sl)
 	int y;
 	struct dstatus *ds = data;
 
-	y = (ds->begl + sl) * font.height + font.ascent;
+	y = (ds->begl + sl) * font.height + font.ascent + VMargin;
 
 	if (ds->curl != sl) { /* need a flush, we changed screen line */
 		assert(x == HMargin);

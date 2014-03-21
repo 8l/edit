@@ -13,6 +13,7 @@ enum {
 	TabWidth = 8,       /* tabulation width */
 	MaxWidth = 500,     /* maximum width of the screen */
 	HMargin = 12,       /* horizontal margin */
+	VMargin = 2,        /* vertical margin */
 };
 
 struct w {
