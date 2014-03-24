@@ -21,8 +21,6 @@ struct ebuf {
 	Log *undo;	/* undo redo logs */
 	Log *redo;
 	Mark *ml;	/* buffer marks */
-	YBuf nb[9];	/* numeric buffers */
-	int ntip;	/* first numeric buffer */
 	char *path;	/* file path */
 };
 

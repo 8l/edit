@@ -41,7 +41,6 @@ struct log {
  */
 
 static void pushlog(Log *, int);
-static void ybini(YBuf *);
 static void rebase(Mark **, Log *);
 static void puteb(EBuf *, FILE *);
 static void putrune(Rune, FILE *);
@@ -166,18 +165,12 @@ EBuf *
 eb_new()
 {
 	EBuf *eb;
-	int i;
 
 	eb = malloc(sizeof *eb);
 	buf_init(&eb->b);
 	eb->undo = log_new();
 	eb->redo = log_new();
 	eb->ml = 0;
-	for (i=0; i<9; i++) {
-		eb->nb[i].r = 0;
-		ybini(&eb->nb[i]);
-	}
-	eb->ntip = 0;
 	eb->path = 0;
 	return eb;
 }
@@ -244,12 +237,7 @@ eb_yank(EBuf *eb, unsigned p0, unsigned p1, YBuf *yb)
 	Rune *pr;
 
 	assert(p0 <= p1);
-
-	if (!yb) {
-		if (--eb->ntip < 0)
-			eb->ntip += 9;
-		yb = &eb->nb[eb->ntip];
-	}
+	assert(yb);
 
 	yb->nr = p1 - p0;
 
@@ -335,18 +323,6 @@ pushlog(Log *log, int type)
 	log->type = type;
 	log->p0 = log->np = 0;
 	log->next = l;
-}
-
-static void
-ybini(YBuf *yb)
-{
-	assert(yb->r == 0);
-
-	yb->r = malloc(YankSize * sizeof(Rune));
-	assert(yb->r);
-	yb->sz = YankSize;
-	yb->nr = 0;
-	yb->linemode = 0;
 }
 
 static void
