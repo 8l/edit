@@ -808,32 +808,89 @@ function used to implement them.
 	memory, it is called {\sl limbo}.  Deletions in limbo must work
 	and do nothing.
 
-@* Edition commands.  Contrary to motion commands these ones will act
+@* Edition commands.  Contrary to motion commands these ones act
 on the buffer to insert and delete text.  We have to be careful to
 commit the modifications after each successful execution of a command
 so that the undo command behaves properly.  Like motion commands, an
 error code is returned by edition commands, 0 significates success while
 1 indicates an error.
 
-@ The delete and change \.{vi} commands have a similar action expect
-that the latter will switch to insertion mode.  Both store the deleted
-text into a yank buffer, so we define a helper |yank| function to
-factor similar code out.  This function executes a motion command and
-yanks the text spanned over by the motion.
+@ Any command altering some text lets the user specify a yank buffer used
+to store the deleted text.  In addition to this, the text is stored in
+the annonymous buffer and, for deletions spanning over multiple lines, in
+the first numeric buffer.  Before yanking in the first numeric buffer,
+numeric buffers are shifted: 1 becomes~2, 2 becomes~3, and so on.
+Because of this shuffling we represent numeric buffers as a ring.
 
-@<Subr...@>=
+@<File local var...@>=
+static int ytip;
+static YBuf ynum[9], yannon;
+
+@ @<Subr...@>=
+static void yankspan(Motion *m, YBuf *y)
+{
+	eb_yank(curwin->eb, m->beg, m->end, y);
+	y->linemode = m->linewise;
+}
+
 static int yank(Motion *m, char buf, unsigned count, Cmd mc)
 {
 	if (mc.count == 0) mc.count = 1;
 	mc.count *= count;
-	*m = (Motion){curwin->cu, 0, 0};
-	assert(keys[mc.chr].motion);
-	if (keys[mc.chr].motion(1, mc, m)) return 1;
-	eb_yank(curwin->eb, m->beg, m->end, 0);
+
+	*m = (Motion){curwin->cu,0,0};
+
+	assert(keys[mc.chr].flags & CIsMotion);
+	if (keys[mc.chr].motion(1, mc, m))
+		return 1;
+
+	if (m->linewise)
+		yankspan(m, &ynum[ytip = (ytip + 8) % 9]);
+	yankspan(m, &yannon);
+
 	return 0;
 }
 
-@ If the motion fails, both change and delete commands also fail.
+static int a_y(char buf, Cmd c, Cmd mc)
+{
+	return yank(&(Motion){0,0,0}, buf, c.count, mc);
+}
+
+
+@ Putting text back from buffers is a simple matter of figuring out
+which buffer to use.  Depending on the put command used, the text
+is inserted after or before the cursor.
+
+@<Subr...@>=
+static int a_pP(char buf, Cmd c, Cmd mc)
+{
+	YBuf *y = &yannon;
+
+	(void) mc;
+	if (buf >= '1' && buf <= '9')
+		y = &ynum[(ytip + buf - '1') % 9];
+	else if (buf != 0) return 1;
+
+	@<Prepare the cursor for putting@>;
+
+	while (c.count--) // copy |y|'s contents
+		for (unsigned p=0; p<y->nr; p++)
+			eb_ins(curwin->eb, curwin->cu+p, y->r[p]);
+	eb_commit(curwin->eb);
+	return 0;
+}
+
+@ @<Prepare the cursor...@>=
+if (y->linemode && c.chr == 'P')
+	curwin->cu = buf_bol(curb, curwin->cu);
+else if (y->linemode && c.chr == 'p')
+	curwin->cu = buf_eol(curb, curwin->cu) + 1;
+else if (c.chr == 'p' && buf_get(curb, curwin->cu) != '\n')
+	curwin->cu++;
+
+@ The delete and change \.{vi} commands have a similar action expect
+that the latter will switch to insertion mode.  If the motion fails,
+both change and delete commands also fail.
 
 @<Subr...@>=
 static int a_d(char buf, Cmd c, Cmd mc)
@@ -1029,7 +1086,7 @@ typedef int @[@] cmd_t(char, Cmd, Cmd);
 array below.
 
 @<Predecl...@>=
-static cmd_t a_d, a_c, a_ins, a_write, a_exit;
+static cmd_t a_d, a_c, a_y, a_pP, a_ins, a_write, a_exit;
 
 @ @<Other key fields@>=
 union {
@@ -1054,10 +1111,11 @@ union {
 ['{'] = Mtn(0, m_par), ['}'] = Mtn(0, m_par),@/
 ['%'] = Mtn(0, m_match),@/
 ['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_d),@/
-['c'] = Act(CHasMotion, a_c),@/
+['c'] = Act(CHasMotion, a_c), ['y'] = Act(CHasMotion, a_y),@/
 ['i'] = Act(0, a_ins), ['I'] = Act(0, a_ins),@/
 ['a'] = Act(0, a_ins), ['A'] = Act(0, a_ins),@/
 ['o'] = Act(0, a_ins), ['O'] = Act(0, a_ins),@/
+['p'] = Act(0, a_pP), ['P'] = Act(0, a_pP),@/
 [CTRL('W')] = Act(0, a_write), [CTRL('Q')] = Act(0, a_exit),
 
 @** Index.
