@@ -765,10 +765,6 @@ for (; (r = beg = buf_get(curb, p)) != '\n'; p++)
 return 1;
 found: dp = n >= N/2 ? -1 : 1, end = match[N - n - 1];
 
-@ @<Predecl...@>=
-static int m_par(int, Cmd, Motion *);
-static int m_match(int, Cmd, Motion *);
-
 @ The motion is linewise if only blank characters are before the
 opening delimiter and after the closing delimiter, this is
 convenient for programming languages with blocks like C.
@@ -785,21 +781,26 @@ convenient for programming languages with blocks like C.
 	}
 }
 
+@ @<Predecl...@>=
+static int m_par(int, Cmd, Motion *);
+static int m_match(int, Cmd, Motion *);
+
 @ The \.G command moves to the line specified by its count, if no
-count is specified, the cursor goes to limbo.
+count is specified, the cursor goes to limbo.  Note that lines are
+0 based in the buffer module so it is necessary to adjust the count.
+If it is used as a motion command, the text copied is always in line
+mode.
 
 @<Subr...@>=
 static int m_G(int ismotion, Cmd c, Motion *m)
 {
-	if (c.count)
-		m->end = buf_setlc(curb, c.count-1, 0);
-	else
-		m->end = curb->limbo;
-	if (ismotion) {
+	m->end = c.count ? buf_setlc(curb, c.count-1, 0) : curb->limbo;
+	if (!ismotion)
+		m->end = blkspn(m->end);
+	else {
 		m->linewise = 1;
 		m->end = buf_eol(curb, m->end) + 1;
-	} else
-		m->end = blkspn(m->end);
+	}
 	return 0;
 }
 
