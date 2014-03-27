@@ -168,6 +168,8 @@ if (!risascii(r)) goto err;
 if (isdigit(r) && (r != '0' || pcmd->count)) {
 	pcmd->count = 10 * pcmd->count + (r - '0');
 } else {
+	if (pcmd->count == 0)
+		pcmd->count = !(keys[r].flags & CZeroCount);
 	pcmd->chr = r;
 	if (keys[pcmd->chr].flags & CIsDouble) {
 		state = CmdDouble; @+break;
@@ -222,6 +224,7 @@ only needs 128 entries.
 @d CHasArg 2 /* is the command expecting an argument */
 @d CHasMotion 4 /* is the command expecting a motion */
 @d CIsMotion 8 /* is this a motion command */
+@d CZeroCount 16 /* can this motion have a 0 count */
 
 @<File local variables...@>=
 static struct {
@@ -762,6 +765,10 @@ for (; (r = beg = buf_get(curb, p)) != '\n'; p++)
 return 1;
 found: dp = n >= N/2 ? -1 : 1, end = match[N - n - 1];
 
+@ @<Predecl...@>=
+static int m_par(int, Cmd, Motion *);
+static int m_match(int, Cmd, Motion *);
+
 @ The motion is linewise if only blank characters are before the
 opening delimiter and after the closing delimiter, this is
 convenient for programming languages with blocks like C.
@@ -778,9 +785,26 @@ convenient for programming languages with blocks like C.
 	}
 }
 
+@ The \.G command moves to the line specified by its count, if no
+count is specified, the cursor goes to limbo.
+
+@<Subr...@>=
+static int m_G(int ismotion, Cmd c, Motion *m)
+{
+	if (c.count)
+		m->end = buf_setlc(curb, c.count-1, 0);
+	else
+		m->end = curb->limbo;
+	if (ismotion) {
+		m->linewise = 1;
+		m->end = buf_eol(curb, m->end) + 1;
+	} else
+		m->end = blkspn(m->end);
+	return 0;
+}
+
 @ @<Predecl...@>=
-static int m_par(int, Cmd, Motion *);
-static int m_match(int, Cmd, Motion *);
+static int m_G(int, Cmd, Motion *);
 
 @*1 Hacking the motion commands. Here is a short list of things you
 want to know if you start hacking either the motion commands, or any
@@ -835,7 +859,6 @@ static void yankspan(Motion *m, YBuf *y)
 
 static int yank(Motion *m, char buf, unsigned count, Cmd mc)
 {
-	if (mc.count == 0) mc.count = 1;
 	mc.count *= count;
 
 	*m = (Motion){curwin->cu,0,0};
@@ -978,9 +1001,6 @@ static void docmd(char buf, Cmd c, Cmd m)
 	static Cmd lastc, lastm;
 	static int redo;
 
-	if (c.count == 0 && c.chr != '.')
-		c.count = 1;
-
 	if (keys[c.chr].flags & CIsMotion) {
 		Motion m = {curwin->cu, 0, 0};
 		if (keys[c.chr].motion(0, c, &m) == 0)
@@ -1019,30 +1039,28 @@ count of the edition and the one of the motion commands repeated.
 
 @<Handle the repeat command@>=
 if (c.chr == '.') {
-	Cmd repc = lastc, repm = lastm;
+	Cmd cpyc = lastc, cpym = lastm;
 
-	if (repc.chr == 0) return;
-	assert(repc.chr != '.');
+	if (lastc.chr == 0) return;
+	assert(lastc.chr != '.');
 
-	if (repc.chr == 'u')
+	if (lastc.chr == 'u')
 		redo = !redo;
 	else
 		assert(redo == 0);
 
 	if (c.count) {
-		repm.count = 1;
-		repc.count = c.count;
+		lastm.count = 1;
+		lastc.count = c.count;
 	}
 
-	lastf.locked = 1;
-	lasti.locked = 1;
-
-	docmd(lastbuf, repc, repm);
+	lastf.locked = lasti.locked = 1;
+	docmd(lastbuf, lastc, lastm);
 	if (mode == Insert)
 		@<Insert runes stored in the |lasti| buffer@>;
+	lastf.locked = lasti.locked = 0;
 
-	lasti.locked = 0;
-	lastf.locked = 0;
+	lastc = cpyc, lastm = cpym;
 	return;
 }
 
@@ -1109,13 +1127,14 @@ union {
 ['e'] = Mtn(0, m_ewEW), ['E'] = Mtn(0, m_ewEW),@/
 ['b'] = Mtn(0, m_bB), ['B'] = Mtn(0, m_bB),@/
 ['{'] = Mtn(0, m_par), ['}'] = Mtn(0, m_par),@/
-['%'] = Mtn(0, m_match),@/
+['%'] = Mtn(0, m_match), ['G'] = Mtn(CZeroCount, m_G),@/
 ['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_d),@/
 ['c'] = Act(CHasMotion, a_c), ['y'] = Act(CHasMotion, a_y),@/
 ['i'] = Act(0, a_ins), ['I'] = Act(0, a_ins),@/
 ['a'] = Act(0, a_ins), ['A'] = Act(0, a_ins),@/
 ['o'] = Act(0, a_ins), ['O'] = Act(0, a_ins),@/
 ['p'] = Act(0, a_pP), ['P'] = Act(0, a_pP),@/
+['.'] = Act(CZeroCount, 0),@/
 [CTRL('W')] = Act(0, a_write), [CTRL('Q')] = Act(0, a_exit),
 
 @** Index.
