@@ -785,11 +785,9 @@ convenient for programming languages with blocks like C.
 static int m_par(int, Cmd, Motion *);
 static int m_match(int, Cmd, Motion *);
 
-@ The \.G command moves to the line specified by its count, if no
-count is specified, the cursor goes to limbo.  Note that lines are
-0 based in the buffer module so it is necessary to adjust the count.
-If it is used as a motion command, the text copied is always in line
-mode.
+@ The \.G command moves to a line specified by its count, if no count
+is given, the cursor is moved to limbo.  When used as a motion command,
+the text copied must always be in line mode.
 
 @<Subr...@>=
 static int m_G(int ismotion, Cmd c, Motion *m)
