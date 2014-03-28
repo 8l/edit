@@ -1,47 +1,42 @@
-OBJDIR := obj
-
-V = @
-
-TOP = .
-
 CC     := clang
 LD     := $(CC)
 TANGLE := ctangle
-STRIP  := strip
+
+V = @
+OBJDIR := obj
 
 LDFLAGS += $$(pkg-config --libs x11 xft)
-CFLAGS  += -g --std=c99 -Wall -Wextra $$(pkg-config --cflags x11 xft)
+CFLAGS  += -g --std=c99 -Wall -Wextra -I. $$(pkg-config --cflags x11 xft)
 
-SRCFILES := unicode.c x11.c buf.c edit.c win.c vicmd.c main.c
-OBJFILES := $(patsubst %.c, $(OBJDIR)/%.o, $(SRCFILES))
+SRCFILES := unicode.c x11.c buf.c edit.c win.c vicmd.w main.c
+OBJFILES := $(patsubst %.w, $(OBJDIR)/%.o, $(SRCFILES:%.c=$(OBJDIR)/%.o))
 
-all:
+all: $(OBJDIR)/edit
 
 # Build rules
 
 clean:
 	rm -fr $(OBJDIR)
 
-$(OBJDIR)/.deps: $(SRCFILES) $(wildcard *.h)
-	@mkdir -p $(@D)
-	@$(CC) -MM $(CFLAGS) *.c \
-		| sed -e "s,\\(.*\\):,$(OBJDIR)/\\1:," > $@
+$(OBJDIR)/.deps: $(OBJDIR) $(SRCFILES:%.w=$(OBJDIR)/%.c) $(wildcard *.h)
+	@$(CC) -MM $(CFLAGS) $(OBJDIR)/*.c *.c \
+		| sed -e "s,^.*:,$(OBJDIR)/&," > $@
 
 -include $(OBJDIR)/.deps
 
-$(OBJDIR)/%.o: %.c
+%.o $(OBJDIR)/%.o: %.c
 	@echo cc $<
-	@mkdir -p $(@D)
 	$(V)$(CC) $(CFLAGS) -c -o $@ $<
 
-%.c: %.w
+$(OBJDIR)/%.c: %.w
 	@echo tangle $<
-	$(V)$(TANGLE) $<
+	$(V)$(TANGLE) $< - $@
 
-$(OBJDIR)/edit: $(OBJFILES)
+$(OBJDIR)/edit: $(OBJDIR) $(OBJFILES)
 	@echo ld $@
 	$(V)$(LD) -o $@ $(LDFLAGS) $(OBJFILES)
 
-all: $(OBJDIR)/edit
+$(OBJDIR):
+	@mkdir -p $@
 
 .PHONY: all clean
