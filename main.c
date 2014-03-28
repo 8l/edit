@@ -23,6 +23,7 @@ die(char *m)
 int
 main(int ac, char *av[])
 {
+	FILE *fp;
 	struct gui *g;
 	EBuf *eb;
 	GEvent e;
@@ -33,12 +34,7 @@ main(int ac, char *av[])
 	eb = eb_new();
 	curwin = win_new(eb);
 
-	if (ac > 1) {
-		FILE *fp = fopen((eb->path = av[1]), "r");
-
-		if (!fp)
-			die("cannot open input file");
-
+	if (ac > 1 && (fp = fopen((eb->path = av[1]), "r"))) {
 		for (unsigned char buf[11], *beg = buf;;) {
 			int rd, in, ins;
 
@@ -52,7 +48,8 @@ main(int ac, char *av[])
 			beg = buf + (in-ins);
 		}
 		fclose(fp);
-	}
+	} else if (!eb->path)
+		eb->path = "dummy.txt";
 
 	while (!exiting) {
 		g->nextevent(&e);
