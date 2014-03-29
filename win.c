@@ -1,4 +1,4 @@
-/*% clang -DWIN_TEST -Wall -g $(pkg-config --libs x11 xft) obj/{unicode,buf,edit,x11}.o % -o #
+/*% clang -DN=3 -DWIN_TEST -Wall -g $(pkg-config --libs x11 xft) obj/{unicode,buf,edit,x11}.o % -o #
  */
 
 #include <assert.h>
@@ -21,10 +21,14 @@ static void draw(W *w);
 static void lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li);
 
 static W wins[MaxWins];
+static struct {
+	W win, *owner;
+	int visible : 1;
+} tag;
 static struct gui *g;
 static GFont font;
 static int fwidth, fheight;
-static int tw;
+static int tabw;
 
 /* win_init - Initialize the module using [gui] as a
  * graphical backed.
@@ -38,7 +42,11 @@ win_init(struct gui *gui)
 	g->getfont(&font);
 
 	/* initialize tab width */
-	tw = TabWidth * g->textwidth((Rune[1]){' '}, 1);
+	tabw = TabWidth * g->textwidth((Rune[1]){' '}, 1);
+
+	/* initialize the tag */
+	tag.win.eb = eb_new();
+	tag.win.gw = g->newwin(0, 0, 10, 10);
 
 	/* the gui module does not give a way to access the screen
 	 * dimension, instead, the first event generated will always
@@ -69,6 +77,7 @@ win_new(EBuf *eb)
 	w->eb = eb;
 	w->gw = g->newwin(0, 0, fwidth, fheight);
 	w->hrig = 500;
+	w->cu = 0;
 
 	return w;
 }
@@ -91,9 +100,23 @@ win_delete(W *w)
 void
 win_redraw(W *w)
 {
-	g->drawrect(w->gw, 0, 0, w->gw->w, fheight, GPaleYellow);
+	GColor bg;
+	int width, height;
+
+	bg = GPaleYellow;
+	width = w->gw->w;
+	height = fheight;
+	if (w == &tag.win) {
+		height = font.height + 2*VMargin;
+		bg = GPinkLace;
+	}
+
+	g->drawrect(w->gw, 0, 0, width, height, bg);
 	draw(w);
 	g->putwin(w->gw);
+
+	if (tag.visible && tag.owner == w)
+		win_redraw(&tag.win);
 }
 
 /* win_resize_frame - Called when the whole frame
@@ -205,6 +228,23 @@ win_show_cursor(W *w, enum CursorLoc where)
 		win_scroll(w, -w->height/font.height/2);
 }
 
+W *
+win_show_tag(W *w)
+{
+	GWin gw = *w->gw;
+
+	if (tag.visible) {
+		tag.visible = 0;
+		win_redraw(tag.owner);
+	}
+	tag.visible = 1;
+	tag.owner = w;
+	gw.h = font.height + 2 * VMargin;
+	g->movewin(tag.win.gw, gw.x, gw.y, gw.w, gw.h);
+	win_redraw(&tag.win);
+	return &tag.win;
+}
+
 /* static functions */
 
 typedef int LineFn(void *data, unsigned off, Rune r, int x, int rw, int sl);
@@ -223,7 +263,7 @@ line(W *w, unsigned off, LineFn f, void *data)
 		r = buf_get(&w->eb->b, off);
 
 		if (r == '\t') {
-			rw = tw - x % tw;
+			rw = tabw - x % tabw;
 		} else if (r == '\n') {
 			rw = 0;
 		} else
@@ -414,7 +454,7 @@ int main()
 {
 	GEvent e;
 	EBuf *eb;
-	W *w;
+	W *ws[N], *w;
 	enum CursorLoc cloc;
 	unsigned char s[] =
 	"je suis\n"
@@ -426,12 +466,13 @@ int main()
 
 	eb = eb_new();
 	win_init(&gui_x11);
-	// win_new(eb);
-	w = win_new(eb);
-	win_new(eb); win_new(eb); // win_new(eb); win_new(eb);
+	for (int i = 0; i < N; i++)
+		ws[i] = win_new(eb);
+	w = ws[0];
 
 	for (int i=0; i<5; i++)
 		eb_ins_utf8(eb, 0, s, sizeof s - 1);
+	eb_ins_utf8(tag.win.eb, 0, (unsigned char *)"TAG WINDOW", 10);
 
 	do {
 		g->nextevent(&e);
@@ -446,7 +487,13 @@ int main()
 			case '+': if (w->hrig < 25000) w->hrig += 1 + w->hrig/10; break;
 			case '-': if (w->hrig > 10) w->hrig -= 1 + w->hrig/10; break;
 			case 'l'-'a'+1: win_show_cursor(w, CMid); break;
-			default: continue;
+			default:
+				if (e.key >= '1' && e.key <= '9') {
+					int n = e.key - '1';
+					if (n < N)
+						win_show_tag(&w[n]);
+				}
+				continue;
 			}
 			win_redraw_frame();
 			if (e.key == 'l' || e.key == 'h')
