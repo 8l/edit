@@ -91,12 +91,7 @@ win_delete(W *w)
 void
 win_redraw(W *w)
 {
-	int width;
-
-	width = w->gw->w;
-	g->drawrect(w->gw, 0, 0, width, fheight, GPaleYellow);
-	if (HMargin)
-		g->drawrect(w->gw, 0, 0, HMargin-1, fheight, GPinkLace);
+	g->drawrect(w->gw, 0, 0, w->gw->w, fheight, GPaleYellow);
 	draw(w);
 	g->putwin(w->gw);
 }
