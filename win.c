@@ -228,21 +228,26 @@ win_show_cursor(W *w, enum CursorLoc where)
 		win_scroll(w, -w->height/font.height/2);
 }
 
-W *
-win_show_tag(W *w)
+void
+win_toggle_tag(W *w)
 {
-	GWin gw = *w->gw;
+	GWin gw;
 
 	if (tag.visible) {
 		tag.visible = 0;
 		win_redraw(tag.owner);
+		if (w == tag.owner)
+			return;
 	}
+
 	tag.visible = 1;
 	tag.owner = w;
+	gw = *w->gw;
 	gw.h = font.height + 2 * VMargin;
 	g->movewin(tag.win.gw, gw.x, gw.y, gw.w, gw.h);
 	win_redraw(&tag.win);
-	return &tag.win;
+
+	return;
 }
 
 /* static functions */
@@ -491,7 +496,7 @@ int main()
 				if (e.key >= '1' && e.key <= '9') {
 					int n = e.key - '1';
 					if (n < N)
-						win_show_tag(&w[n]);
+						win_toggle_tag(&w[n]);
 				}
 				continue;
 			}
