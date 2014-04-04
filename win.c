@@ -104,7 +104,7 @@ win_redraw(W *w)
 
 	bg = GPaleYellow;
 	if (w == &tag.win)
-		bg = GPinkLace;
+		bg = GPaleGreen;
 
 	g->drawrect(w->gw, 0, 0, w->gw->w, w->gw->h, bg);
 	draw(w);
