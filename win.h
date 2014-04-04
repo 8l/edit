@@ -34,6 +34,8 @@ void win_resize_frame(int w, int h);
 void win_redraw_frame(void);
 void win_scroll(W *, int);
 void win_show_cursor(W *, enum CursorLoc);
-void win_toggle_tag(W *);
+W *win_tag_win(void);
+W *win_tag_owner(void);
+void win_tag_toggle(W *);
 
 #endif /* ndef WIN_H */

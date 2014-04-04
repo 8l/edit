@@ -101,17 +101,12 @@ void
 win_redraw(W *w)
 {
 	GColor bg;
-	int width, height;
 
 	bg = GPaleYellow;
-	width = w->gw->w;
-	height = fheight;
-	if (w == &tag.win) {
-		height = font.height + 2*VMargin;
+	if (w == &tag.win)
 		bg = GPinkLace;
-	}
 
-	g->drawrect(w->gw, 0, 0, width, height, bg);
+	g->drawrect(w->gw, 0, 0, w->gw->w, w->gw->h, bg);
 	draw(w);
 	g->putwin(w->gw);
 
@@ -228,8 +223,21 @@ win_show_cursor(W *w, enum CursorLoc where)
 		win_scroll(w, -w->height/font.height/2);
 }
 
+W *
+win_tag_win()
+{
+	return &tag.win;
+}
+
+W *
+win_tag_owner()
+{
+	assert(tag.visible);
+	return tag.owner;
+}
+
 void
-win_toggle_tag(W *w)
+win_tag_toggle(W *w)
 {
 	GWin gw;
 
@@ -243,7 +251,7 @@ win_toggle_tag(W *w)
 	tag.visible = 1;
 	tag.owner = w;
 	gw = *w->gw;
-	gw.h = font.height + 2 * VMargin;
+	tag.win.height = (gw.h /= 3);
 	g->movewin(tag.win.gw, gw.x, gw.y, gw.w, gw.h);
 	win_redraw(&tag.win);
 
@@ -477,7 +485,8 @@ int main()
 
 	for (int i=0; i<5; i++)
 		eb_ins_utf8(eb, 0, s, sizeof s - 1);
-	eb_ins_utf8(tag.win.eb, 0, (unsigned char *)"TAG WINDOW", 10);
+	for (int i=0; i<5; i++)
+		eb_ins_utf8(tag.win.eb, 0, (unsigned char *)"TAG WINDOW\n", 10);
 
 	do {
 		g->nextevent(&e);
@@ -496,7 +505,7 @@ int main()
 				if (e.key >= '1' && e.key <= '9') {
 					int n = e.key - '1';
 					if (n < N)
-						win_toggle_tag(&w[n]);
+						win_tag_toggle(&w[n]);
 				}
 				continue;
 			}
