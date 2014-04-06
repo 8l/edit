@@ -102,9 +102,10 @@ win_redraw(W *w)
 {
 	GColor bg;
 
-	bg = GPaleYellow;
 	if (w == &tag.win)
 		bg = GPaleGreen;
+	else
+		bg = GPaleYellow;
 
 	g->drawrect(w->gw, 0, 0, w->gw->w, w->gw->h, bg);
 	draw(w);
@@ -137,7 +138,11 @@ win_resize_frame(int w, int h)
 			ww = (fwidth * pw->hrig) / rig;
 			g->movewin(pw->gw, x, 0, ww, fheight);
 			win_redraw(pw);
-			x += ww /* +1 */;
+			if (tag.visible && tag.owner == pw) {
+				tag.visible = 0;
+				win_tag_toggle(pw);
+			}
+			x += ww;
 		}
 }
 
