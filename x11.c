@@ -28,6 +28,7 @@ static Window win;
 static Pixmap pbuf;
 XftDraw *xft;
 static int w, h;
+static int dirty; // hack
 
 static void
 init()
@@ -176,7 +177,8 @@ drawrect(GWin *gw, int x, int y, int w, int h, GColor c)
 static void
 putwin(GWin *gw)
 {
-	 XCopyArea(d, pbuf, win, gc, gw->x, gw->y, gw->w, gw->h, gw->x, gw->y);
+	 (void) gw;
+	 dirty = 1;
 }
 
 static int
@@ -193,11 +195,15 @@ nextevent(GEvent *gev)
 {
 	XEvent e;
 
+	if (dirty)
+		goto expose;
+
 	do {
 		XNextEvent(d, &e);
 		switch (e.type) {
 
 		case Expose:
+		expose:
 			XCopyArea(d, pbuf, win, gc, 0, 0, w, h, 0, 0);
 			continue;
 
