@@ -17,14 +17,6 @@ enum {
 	Height = 480,
 };
 
-typedef struct xwin XWin;
-struct xwin {
-	GWin gw;
-	Pixmap p;
-	XftDraw *xft;
-	int used;
-};
-
 static Display *d;
 static Visual *visual;
 static Colormap cmap;
@@ -33,8 +25,9 @@ static int screen;
 static GC gc;
 static XftFont *font;
 static Window win;
+static Pixmap pbuf;
+XftDraw *xft;
 static int w, h;
-static XWin wins[MaxWins];
 
 static void
 init()
@@ -80,11 +73,19 @@ init()
 	gcv.foreground = WhitePixel(d, screen);
 	gcv.graphics_exposures = False;
 	gc = XCreateGC(d, win, GCForeground|GCGraphicsExposures, &gcv);
+
+	/* initialize back buffer and Xft drawing context */
+	pbuf = XCreatePixmap(d, win, Width, Height, depth);
+	xft = XftDrawCreate(d, pbuf, visual, cmap);
 }
 
 static void
 fini()
 {
+	if (pbuf != None) {
+		XftDrawDestroy(xft);
+		XFreePixmap(d, pbuf);
+	}
 	XCloseDisplay(d);
 }
 
@@ -94,68 +95,31 @@ getfont(GFont *ret)
 	ret->data = font;
 	ret->ascent = font->ascent;
 	ret->descent = font->descent;
-	ret->width = font->max_advance_width;
 	ret->height = font->height;
 }
 
 static void
 movewin(GWin *gw, int x, int y, int w, int h)
 {
-	XWin *xw;
-
-	gw->x = x;
-	gw->y = y;
-	if (gw->w == w && gw->h == h)
-		return;
-
-	xw = (XWin *)gw;
-	gw->w = w;
-	gw->h = h;
-	if (xw->xft) {
-		XftDrawDestroy(xw->xft);
-		XFreePixmap(d, xw->p);
-	}
-
-	xw->p = XCreatePixmap(d, win, w, h, depth);
-	xw->xft = XftDrawCreate(d, xw->p, visual, cmap);
-	XFillRectangle(d, xw->p, gc, 0, 0, w, h);
+	*gw = (GWin){ .x = x, .y = y, .w = w, .h = h };
 }
 
 static GWin *
 newwin(int x, int y, int w, int h)
 {
-	int i;
-	XWin *xw;
+	GWin *gw;
 
-	assert(w != 0 || h != 0);
-
-	xw = 0;
-	for (i=0; i<MaxWins; i++) {
-		if (wins[i].used)
-			continue;
-		xw = &wins[i];
-		break;
-	}
-	if (!xw)
+	gw = malloc(sizeof *gw);
+	if (!gw)
 		return 0;
-
-	xw->used = 1;
-	xw->gw.w = 0;
-	xw->gw.h = 0;
-	xw->xft = NULL;
-	movewin((GWin *)xw, x, y, w, h);
-	return (GWin *)xw;
+	movewin(gw, x, y, w, h);
+	return gw;
 }
 
 static void
 delwin(GWin *gw)
 {
-	XWin *xw;
-
-	xw = (XWin *)gw;
-	XftDrawDestroy(xw->xft);
-	XFreePixmap(d, xw->p);
-	xw->used = 0;
+	free(gw);
 }
 
 static void
@@ -172,43 +136,47 @@ static void
 drawtext(GWin *gw, Rune *str, int len, int x, int y, GColor c)
 {
 	XftColor col;
-	XWin *xw;
 
-	xw = (XWin *)gw;
+	x += gw->x;
+	y += gw->y;
+
+	// set clip!
 	xftcolor(&col, c);
-	XftDrawString32(xw->xft, &col, font, x, y, (FcChar32 *)str, len);
+	XftDrawString32(xft, &col, font, x, y, (FcChar32 *)str, len);
 }
 
 static void
 drawrect(GWin *gw, int x, int y, int w, int h, GColor c)
 {
-	XWin *xw;
+	if (x + w > gw->w)
+		w = gw->w - x;
+	if (y + h > gw->h)
+		h = gw->h - y;
 
-	xw = (XWin *)gw;
+	x += gw->x;
+	y += gw->y;
+
 	if (c.x) {
 		XGCValues gcv;
 		GC gc;
 
 		gcv.foreground = WhitePixel(d, screen);
 		gcv.function = GXxor;
-		gc = XCreateGC(d, xw->p, GCFunction|GCForeground, &gcv);
-		XFillRectangle(d, xw->p, gc, x, y, w, h);
+		gc = XCreateGC(d, pbuf, GCFunction|GCForeground, &gcv);
+		XFillRectangle(d, pbuf, gc, x, y, w, h);
 		XFreeGC(d, gc);
 	} else {
 		XftColor col;
 
 		xftcolor(&col, c);
-		XftDrawRect(xw->xft, &col, x, y, w, h);
+		XftDrawRect(xft, &col, x, y, w, h);
 	}
 }
 
 static void
 putwin(GWin *gw)
 {
-	 XWin *xw;
-
-	 xw = (XWin *)gw;
-	 XCopyArea(d, xw->p, win, gc, 0, 0, gw->w, gw->h, gw->x, gw->y);
+	 XCopyArea(d, pbuf, win, gc, gw->x, gw->y, gw->w, gw->h, gw->x, gw->y);
 }
 
 static int
@@ -230,17 +198,8 @@ nextevent(GEvent *gev)
 		switch (e.type) {
 
 		case Expose:
-		{
-			XWin *w;
-
-			/* we could suck all exposes here */
-			for (w=wins; w-wins<MaxWins; w++) {
-				if (!w->used)
-					continue;
-				putwin((GWin *)w);
-			}
+			XCopyArea(d, pbuf, win, gc, 0, 0, w, h, 0, 0);
 			continue;
-		}
 
 		case ConfigureNotify:
 			if (e.xconfigure.width == w)
@@ -249,6 +208,9 @@ nextevent(GEvent *gev)
 
 			w = e.xconfigure.width;
 			h = e.xconfigure.height;
+
+			pbuf = XCreatePixmap(d, win, w, h, depth);
+			xft = XftDrawCreate(d, pbuf, visual, cmap);
 
 			gev->type = GResize;
 			gev->resize.width = w;

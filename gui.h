@@ -31,7 +31,6 @@ struct gfont {
 	void *data;
 	int ascent;
 	int descent;
-	int width;
 	int height;
 };
 
