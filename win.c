@@ -498,13 +498,14 @@ int main()
 		if (e.type == GResize)
 			win_resize_frame(e.resize.width, e.resize.height);
 		if (e.type == GKey) {
+			int glo = 0;
 			switch (e.key) {
 			case 'l': ++w->cu; cloc = CBot; break;
 			case 'h': --w->cu; cloc = CTop; break;
 			case 'e'-'a' + 1: win_scroll(w,  1); break;
 			case 'y'-'a' + 1: win_scroll(w, -1); break;
-			case '+': if (w->hrig < 25000) w->hrig += 1 + w->hrig/10; break;
-			case '-': if (w->hrig > 10) w->hrig -= 1 + w->hrig/10; break;
+			case '+': glo=1; if (w->hrig < 25000) w->hrig += 1 + w->hrig/10; break;
+			case '-': glo=1; if (w->hrig > 10) w->hrig -= 1 + w->hrig/10; break;
 			case 'l'-'a'+1: win_show_cursor(w, CMid); break;
 			default:
 				if (e.key >= '1' && e.key <= '9') {
@@ -514,7 +515,10 @@ int main()
 				}
 				continue;
 			}
-			win_redraw_frame();
+			if (glo)
+				win_redraw_frame();
+			else
+				win_redraw(w);
 			if (e.key == 'l' || e.key == 'h')
 			if (w->cu < w->start || w->cu >= w->stop) {
 				win_show_cursor(w, cloc);
