@@ -6,12 +6,8 @@
 
 typedef struct gcolor GColor;
 typedef struct gfont  GFont;
-typedef struct gwin   GWin;
+typedef struct grect  GRect;
 typedef struct gevent GEvent;
-
-enum {
-	MaxWins = 9,
-};
 
 struct gcolor {
 	unsigned char red;
@@ -34,7 +30,7 @@ struct gfont {
 	int height;
 };
 
-struct gwin {
+struct grect {
 	int x, y;
 	int w, h;
 };
@@ -91,13 +87,9 @@ struct gui {
 	void (*init)(void);
 	void (*fini)(void);
 	void (*getfont)(GFont *fret);
-	GWin *(*newwin)(int x, int y, int w, int h);
-	void (*movewin)(GWin *gw, int x, int y, int w, int h);
-	void (*delwin)(GWin *gw);
-	void (*drawtext)(GWin *gw, Rune *str, int len,
+	void (*drawtext)(GRect *clip, Rune *str, int len,
 	                 int x, int y, GColor color);
-	void (*drawrect)(GWin *gw, int x, int y, int w, int h, GColor c);
-	void (*putwin)(GWin *gw);
+	void (*drawrect)(GRect *clip, int x, int y, int w, int h, GColor c);
 	int (*textwidth)(Rune *str, int len);
 	void (*nextevent)(GEvent *eret);
 };

@@ -14,14 +14,15 @@ enum {
 	MaxWidth = 500,     /* maximum width of the screen */
 	HMargin = 12,       /* horizontal margin */
 	VMargin = 2,        /* vertical margin */
+	MaxWins = 6,        /* maximal number of windows */
 };
 
 struct w {
 	unsigned start, stop;  /* offset of the first/last character displayed */
 	unsigned cu;           /* cursor offset */
-	int hrig, height;      /* horizontal rigidity and height of the window */
+	int hrig;              /* horizontal rigidity */
 	EBuf *eb;              /* underlying buffer object */
-	GWin *gw;              /* graphical window associated */
+	GRect gr;              /* location on the screen */
 };
 
 enum CursorLoc { CTop, CMid, CBot };

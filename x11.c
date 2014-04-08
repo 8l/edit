@@ -28,7 +28,7 @@ static Window win;
 static Pixmap pbuf;
 XftDraw *xft;
 static int w, h;
-static int dirty; // hack
+static int dirty;
 
 static void
 init()
@@ -100,30 +100,6 @@ getfont(GFont *ret)
 }
 
 static void
-movewin(GWin *gw, int x, int y, int w, int h)
-{
-	*gw = (GWin){ .x = x, .y = y, .w = w, .h = h };
-}
-
-static GWin *
-newwin(int x, int y, int w, int h)
-{
-	GWin *gw;
-
-	gw = malloc(sizeof *gw);
-	if (!gw)
-		return 0;
-	movewin(gw, x, y, w, h);
-	return gw;
-}
-
-static void
-delwin(GWin *gw)
-{
-	free(gw);
-}
-
-static void
 xftcolor(XftColor *xc, GColor c)
 {
 	xc->color.red = c.red << 8;
@@ -134,28 +110,29 @@ xftcolor(XftColor *xc, GColor c)
 }
 
 static void
-drawtext(GWin *gw, Rune *str, int len, int x, int y, GColor c)
+drawtext(GRect *clip, Rune *str, int len, int x, int y, GColor c)
 {
 	XftColor col;
 
-	x += gw->x;
-	y += gw->y;
+	x += clip->x;
+	y += clip->y;
 
 	// set clip!
 	xftcolor(&col, c);
 	XftDrawString32(xft, &col, font, x, y, (FcChar32 *)str, len);
+	dirty = 1;
 }
 
 static void
-drawrect(GWin *gw, int x, int y, int w, int h, GColor c)
+drawrect(GRect *clip, int x, int y, int w, int h, GColor c)
 {
-	if (x + w > gw->w)
-		w = gw->w - x;
-	if (y + h > gw->h)
-		h = gw->h - y;
+	if (x + w > clip->w)
+		w = clip->w - x;
+	if (y + h > clip->h)
+		h = clip->h - y;
 
-	x += gw->x;
-	y += gw->y;
+	x += clip->x;
+	y += clip->y;
 
 	if (c.x) {
 		XGCValues gcv;
@@ -172,13 +149,7 @@ drawrect(GWin *gw, int x, int y, int w, int h, GColor c)
 		xftcolor(&col, c);
 		XftDrawRect(xft, &col, x, y, w, h);
 	}
-}
-
-static void
-putwin(GWin *gw)
-{
-	 (void) gw;
-	 dirty = 1;
+	dirty = 1;
 }
 
 static int
@@ -316,12 +287,8 @@ struct gui gui_x11 = {
 	.init		= init,
 	.fini		= fini,
 	.getfont	= getfont,
-	.newwin		= newwin,
-	.movewin	= movewin,
-	.delwin		= delwin,
 	.drawtext	= drawtext,
 	.drawrect	= drawrect,
-	.putwin		= putwin,
 	.textwidth	= textwidth,
 	.nextevent	= nextevent,
 };

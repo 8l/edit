@@ -46,7 +46,6 @@ win_init(struct gui *gui)
 
 	/* initialize the tag */
 	tag.win.eb = eb_new();
-	tag.win.gw = g->newwin(0, 0, 10, 10);
 
 	/* the gui module does not give a way to access the screen
 	 * dimension, instead, the first event generated will always
@@ -70,12 +69,12 @@ win_new(EBuf *eb)
 	for (w = wins;; w++) {
 		if (w - wins >= MaxWins)
 			return 0;
-		if (!w->gw)
+		if (!w->eb)
 			break;
 	}
 
 	w->eb = eb;
-	w->gw = g->newwin(0, 0, fwidth, fheight);
+	w->gr = (GRect){0, 0, fwidth, fheight};
 	w->hrig = 500;
 	w->cu = 0;
 
@@ -90,9 +89,8 @@ win_delete(W *w)
 	assert(w >= wins);
 	assert(w < wins+MaxWins);
 
-	g->delwin(w->gw);
 	memset(w, 0, sizeof(W));
-	w->gw = 0;
+	w->eb = 0;
 }
 
 /* win_redraw - Fully redraw a window and display it.
@@ -107,9 +105,8 @@ win_redraw(W *w)
 	else
 		bg = GPaleYellow;
 
-	g->drawrect(w->gw, 0, 0, w->gw->w, w->gw->h, bg);
+	g->drawrect(&w->gr, 0, 0, w->gr.w, w->gr.h, bg);
 	draw(w);
-	g->putwin(w->gw);
 
 	if (tag.visible && tag.owner == w)
 		win_redraw(&tag.win);
@@ -133,10 +130,9 @@ win_resize_frame(int w, int h)
 		rig += pw->hrig;
 
 	for (x=0, pw=wins; pw-wins<MaxWins; pw++)
-		if (pw->gw) {
-			pw->height = fheight;
+		if (pw->eb) {
 			ww = (fwidth * pw->hrig) / rig;
-			g->movewin(pw->gw, x, 0, ww, fheight);
+			pw->gr = (GRect){x, 0, ww, fheight};
 			win_redraw(pw);
 			if (tag.visible && tag.owner == pw) {
 				tag.visible = 0;
@@ -223,9 +219,9 @@ win_show_cursor(W *w, enum CursorLoc where)
 	assert(li.len >= 2);
 	w->start = li.sl[(li.beg + li.len-2) % RingSize];
 	if (where == CBot)
-		win_scroll(w, -w->height/font.height + 1);
+		win_scroll(w, -w->gr.h/font.height + 1);
 	else if (where == CMid)
-		win_scroll(w, -w->height/font.height/2);
+		win_scroll(w, -w->gr.h/font.height/2);
 }
 
 W *
@@ -244,8 +240,6 @@ win_tag_owner()
 void
 win_tag_toggle(W *w)
 {
-	GWin gw;
-
 	if (tag.visible) {
 		tag.visible = 0;
 		win_redraw(tag.owner);
@@ -255,9 +249,8 @@ win_tag_toggle(W *w)
 
 	tag.visible = 1;
 	tag.owner = w;
-	gw = *w->gw;
-	tag.win.height = (gw.h /= 3);
-	g->movewin(tag.win.gw, gw.x, gw.y, gw.w, gw.h);
+	tag.win.gr = w->gr;
+	tag.win.gr.h /= 3;
 	win_redraw(&tag.win);
 
 	return;
@@ -287,7 +280,7 @@ line(W *w, unsigned off, LineFn f, void *data)
 		} else
 			rw = g->textwidth(&r, 1);
 
-		if (HMargin+x+rw > w->gw->w)
+		if (HMargin+x+rw > w->gr.w)
 		if (x != 0) { /* force progress */
 			x = 0;
 			l++;
@@ -304,7 +297,7 @@ line(W *w, unsigned off, LineFn f, void *data)
  * will flush if the current character is \n or \t.
  */
 static void
-pushrune(GWin *gw, Rune r, int x, int y, int w, int cu)
+pushrune(GRect *clip, Rune r, int x, int y, int w, int cu)
 {
 	static int fragx = -1, fragy, cx = -1, cy, cw;
 	static Rune frag[MaxWidth], *p = frag;
@@ -335,9 +328,9 @@ pushrune(GWin *gw, Rune r, int x, int y, int w, int cu)
 		printf("'\n");
 #endif
 		assert(fragx != -1);
-		g->drawtext(gw, frag, p-frag, fragx, fragy, GBlack);
+		g->drawtext(clip, frag, p-frag, fragx, fragy, GBlack);
 		if (cx != -1)
-			g->drawrect(gw, cx, cy, cw, font.height, GXBlack);
+			g->drawrect(clip, cx, cy, cw, font.height, GXBlack);
 
 		fragx = cx = -1;
 		p = frag;
@@ -365,12 +358,12 @@ drawfn(void *data, unsigned off, Rune r, int x, int rw, int sl)
 	if (ds->curl != sl) { /* need a flush, we changed screen line */
 		assert(x == HMargin);
 		ds->curl = sl;
-		pushrune(ds->w->gw, '\n', 0, 0, 0, 0);
-		if (y + font.descent > ds->w->height)
+		pushrune(&ds->w->gr, '\n', 0, 0, 0, 0);
+		if (y + font.descent > ds->w->gr.h)
 			return 0;
 	}
 
-	pushrune(ds->w->gw, r, x, y, rw, off == ds->w->cu);
+	pushrune(&ds->w->gr, r, x, y, rw, off == ds->w->cu);
 	return 1;
 }
 
@@ -385,7 +378,7 @@ draw(W *w)
 	ds.begl = 0;
 	ds.curl = 0;
 	off = w->start;
-	nls = w->height/font.height;
+	nls = w->gr.h/font.height;
 
 	do {
 		off = line(w, off, drawfn, &ds);
