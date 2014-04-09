@@ -24,7 +24,6 @@ struct gcolor {
 #define GXBlack     (GColor){ 0, 0, 0, 1 }
 
 struct gfont {
-	void *data;
 	int ascent;
 	int descent;
 	int height;

@@ -93,7 +93,6 @@ fini()
 static void
 getfont(GFont *ret)
 {
-	ret->data = font;
 	ret->ascent = font->ascent;
 	ret->descent = font->descent;
 	ret->height = font->height;
