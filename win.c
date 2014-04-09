@@ -17,13 +17,15 @@ struct lineinfo {
 	unsigned sl[RingSize]; /* screen line offsets */
 };
 
-static void draw(W *w);
+static void draw(W *w, GColor bg);
+static void update(W *w);
 static void lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li);
 
 static W wins[MaxWins];
 static struct {
-	W win, *owner;
-	int visible : 1;
+	W win;
+	W *owner;
+	int visible;
 } tag;
 static struct gui *g;
 static GFont font;
@@ -42,7 +44,7 @@ win_init(struct gui *gui)
 	g->getfont(&font);
 
 	/* initialize tab width */
-	tabw = TabWidth * g->textwidth((Rune[1]){' '}, 1);
+	tabw = TabWidth * g->textwidth((Rune[]){' '}, 1);
 
 	/* initialize the tag */
 	tag.win.eb = eb_new();
@@ -66,7 +68,7 @@ win_new(EBuf *eb)
 
 	assert(eb);
 
-	for (w = wins;; w++) {
+	for (w=wins;; w++) {
 		if (w - wins >= MaxWins)
 			return 0;
 		if (!w->eb)
@@ -76,7 +78,6 @@ win_new(EBuf *eb)
 	w->eb = eb;
 	w->gr = (GRect){0, 0, fwidth, fheight};
 	w->hrig = 500;
-	w->cu = 0;
 
 	return w;
 }
@@ -93,23 +94,30 @@ win_delete(W *w)
 	w->eb = 0;
 }
 
-/* win_redraw - Fully redraw a window and display it.
+/* win_move - Position and redraw a given window, if one
+ * dimension is null, simply redraw the window.
  */
 void
-win_redraw(W *w)
+win_move(W *pw, int x, int w, int h)
 {
 	GColor bg;
 
-	if (w == &tag.win)
+	if (w!=0 && h!=0) {
+		pw->gr = (GRect){x, 0, w, h};
+		pw->nl = (h - VMargin) / font.height;
+		assert(pw->nl < MaxHeight);
+	}
+
+	if (pw == &tag.win)
 		bg = GPaleGreen;
 	else
 		bg = GPaleYellow;
 
-	g->drawrect(&w->gr, 0, 0, w->gr.w, w->gr.h, bg);
-	draw(w);
+	update(pw);
+	draw(pw, bg);
 
-	if (tag.visible && tag.owner == w)
-		win_redraw(&tag.win);
+	if (tag.visible && tag.owner == pw)
+		win_move(&tag.win, 0, 0, 0);
 }
 
 /* win_resize_frame - Called when the whole frame
@@ -132,8 +140,7 @@ win_resize_frame(int w, int h)
 	for (x=0, pw=wins; pw-wins<MaxWins; pw++)
 		if (pw->eb) {
 			ww = (fwidth * pw->hrig) / rig;
-			pw->gr = (GRect){x, 0, ww, fheight};
-			win_redraw(pw);
+			win_move(pw, x, ww, fheight);
 			if (tag.visible && tag.owner == pw) {
 				tag.visible = 0;
 				win_tag_toggle(pw);
@@ -156,15 +163,15 @@ win_redraw_frame()
 void
 win_scroll(W *w, int n)
 {
-
 	struct lineinfo li;
 	unsigned start, bol;
 
 	if (n == 0)
 		return;
 
+	start = w->l[0];
+
 	if (n < 0) {
-		start = w->start;
 		do {
 			int top;
 
@@ -179,12 +186,10 @@ win_scroll(W *w, int n)
 			assert(top >= 0);
 			for (; n<0 && top>=0; top--, n++) {
 				start = li.sl[(li.beg + top) % RingSize];
-				assert(start < w->start);
+				assert(start < w->l[0]);
 			}
 		} while (n<0);
-		w->start = start;
 	} else {
-		start = w->start;
 		do {
 			int top;
 
@@ -194,12 +199,13 @@ win_scroll(W *w, int n)
 			assert(top < li.len);
 			for (; n>0 && top<li.len; top++, n--) {
 				start = li.sl[(li.beg + top) % RingSize];
-				assert(start > w->start
-				    || buf_get(&w->eb->b, w->start) == '\n'); // change this to test size
+				assert(start > w->l[0] || w->l[0] >= w->eb->b.limbo);
 			}
 		} while (n>0);
-		w->start = start;
 	}
+
+	w->l[0] = start;
+	update(w);
 }
 
 /* win_show_cursor - Find the cursor in [w] and adjust
@@ -217,11 +223,11 @@ win_show_cursor(W *w, enum CursorLoc where)
 	li.beg = li.len = 0;
 	lineinfo(w, bol, w->cu, &li);
 	assert(li.len >= 2);
-	w->start = li.sl[(li.beg + li.len-2) % RingSize];
+	w->l[0] = li.sl[(li.beg + li.len-2) % RingSize];
 	if (where == CBot)
-		win_scroll(w, -w->gr.h/font.height + 1);
+		win_scroll(w, -w->nl + 1);
 	else if (where == CMid)
-		win_scroll(w, -w->gr.h/font.height/2);
+		win_scroll(w, -w->nl / 2);
 }
 
 W *
@@ -242,21 +248,119 @@ win_tag_toggle(W *w)
 {
 	if (tag.visible) {
 		tag.visible = 0;
-		win_redraw(tag.owner);
+		win_move(tag.owner, 0, 0, 0);
 		if (w == tag.owner)
 			return;
 	}
 
 	tag.visible = 1;
 	tag.owner = w;
-	tag.win.gr = w->gr;
-	tag.win.gr.h /= 3;
-	win_redraw(&tag.win);
+	win_move(&tag.win, w->gr.x, w->gr.w, w->gr.h/3);
 
 	return;
 }
 
 /* static functions */
+
+static int
+runewidth(Rune r, int x)
+{
+	int rw;
+
+	if (r == '\t') {
+		rw = tabw - x % tabw;
+	} else if (r == '\n') {
+		rw = 0;
+	} else
+		rw = g->textwidth(&r, 1);
+
+	return rw;
+}
+
+struct frag {
+	Rune b[MaxWidth];
+	int n;
+	int x, y;
+};
+
+static void
+pushfrag(struct frag *f, Rune r)
+{
+	assert(f->n < MaxWidth);
+	f->b[f->n++] = r;
+}
+
+static void
+flushfrag(struct frag *f, W *w, int x, int y)
+{
+	g->drawtext(&w->gr, f->b, f->n, f->x, f->y, GBlack);
+	f->n = 0;
+	f->x = x;
+	f->y = y;
+}
+
+static void
+draw(W *w, GColor bg)
+{
+	struct frag f;
+	int x, y, cx, cy, cw, rw;
+	unsigned *next, c;
+	Rune r;
+
+	g->drawrect(&w->gr, 0, 0, w->gr.w, w->gr.h, bg);
+
+	cw = 0;
+	x = HMargin;
+	y = VMargin + font.ascent;
+	f.n = 0;
+	flushfrag(&f, w, x, y);
+	next = &w->l[1];
+
+	for (c=w->l[0]; c<w->l[w->nl]; c++) {
+		if (c >= *next) {
+			assert(c == *next);
+			x = HMargin;
+			y += font.height;
+			next++;
+			flushfrag(&f, w, x, y);
+		}
+
+		r = buf_get(&w->eb->b, c);
+		rw = runewidth(r, x-HMargin);
+
+		if (c == w->cu) {
+			cx = x;
+			cy = y - font.ascent;
+			cw = rw ? rw : 4;
+		}
+
+		x += rw;
+		if (r == '\t')
+			flushfrag(&f, w, x, y);
+		else if (r != '\n')
+			pushfrag(&f, r);
+	}
+
+	flushfrag(&f, w, 0, 0);
+	if (cw != 0)
+		g->drawrect(&w->gr, cx, cy, cw, font.height, GXBlack);
+}
+
+static void
+update(W *w)
+{
+	struct lineinfo li;
+	int l, top;
+
+	for (l=1; l<=w->nl;) {
+		li.beg = li.len = 0;
+		lineinfo(w, w->l[l-1], -1, &li);
+		top = 1;
+		assert(top<li.len);
+		for (; top<li.len; top++, l++)
+			w->l[l] = li.sl[(li.beg + top) % RingSize];
+	}
+}
 
 typedef int LineFn(void *data, unsigned off, Rune r, int x, int rw, int sl);
 
@@ -272,13 +376,7 @@ line(W *w, unsigned off, LineFn f, void *data)
 
 	for (; r != '\n'; x+=rw, off++) {
 		r = buf_get(&w->eb->b, off);
-
-		if (r == '\t') {
-			rw = tabw - x % tabw;
-		} else if (r == '\n') {
-			rw = 0;
-		} else
-			rw = g->textwidth(&r, 1);
+		rw = runewidth(r, x);
 
 		if (HMargin+x+rw > w->gr.w)
 		if (x != 0) { /* force progress */
@@ -291,102 +389,6 @@ line(W *w, unsigned off, LineFn f, void *data)
 	}
 
 	return off;
-}
-
-/* aggregate all calls to [drawtext] into batches, it
- * will flush if the current character is \n or \t.
- */
-static void
-pushrune(GRect *clip, Rune r, int x, int y, int w, int cu)
-{
-	static int fragx = -1, fragy, cx = -1, cy, cw;
-	static Rune frag[MaxWidth], *p = frag;
-
-	assert(r == '\n' || fragx == -1 || y == fragy);
-
-	if (fragx == -1) {
-		fragx = x;
-		fragy = y;
-	}
-
-	if (cu) {
-		cx = x;
-		cy = y - font.ascent;
-		cw = w ? w : 4;
-	}
-
-	if (r == '\t' || r == '\n') {
-#if 0
-		printf("flushing: fragx = %d\n"
-		       "          fragy = %d\n"
-		       "          r = %u\n"
-		       "          len = %td\n"
-		       "          frag = '",
-		       fragx, fragy, r, p-frag);
-		for (int i=0; i<p-frag; i++)
-			printf("%c", (char)frag[i]);
-		printf("'\n");
-#endif
-		assert(fragx != -1);
-		g->drawtext(clip, frag, p-frag, fragx, fragy, GBlack);
-		if (cx != -1)
-			g->drawrect(clip, cx, cy, cw, font.height, GXBlack);
-
-		fragx = cx = -1;
-		p = frag;
-		return;
-	}
-
-	assert(p-frag < MaxWidth);
-	*p++ = r;
-}
-
-struct dstatus {
-	W *w;
-	int begl, curl;
-};
-
-/* to be called as a LineFn by the [line] function */
-static int
-drawfn(void *data, unsigned off, Rune r, int x, int rw, int sl)
-{
-	int y;
-	struct dstatus *ds = data;
-
-	y = (ds->begl + sl) * font.height + font.ascent + VMargin;
-
-	if (ds->curl != sl) { /* need a flush, we changed screen line */
-		assert(x == HMargin);
-		ds->curl = sl;
-		pushrune(&ds->w->gr, '\n', 0, 0, 0, 0);
-		if (y + font.descent > ds->w->gr.h)
-			return 0;
-	}
-
-	pushrune(&ds->w->gr, r, x, y, rw, off == ds->w->cu);
-	return 1;
-}
-
-static void
-draw(W *w)
-{
-	int nls;
-	unsigned off;
-	struct dstatus ds;
-
-	ds.w = w;
-	ds.begl = 0;
-	ds.curl = 0;
-	off = w->start;
-	nls = w->gr.h/font.height;
-
-	do {
-		off = line(w, off, drawfn, &ds);
-		ds.begl += ds.curl + 1;
-		ds.curl = 0;
-	} while (ds.begl < nls);
-
-	w->stop = off;
 }
 
 static int
@@ -469,7 +471,7 @@ int main()
 	enum CursorLoc cloc;
 	unsigned char s[] =
 	"je suis\n"
-	"\tQcar\n"
+	"x\tQcar\n"
 	"tab\ttest\n"
 	"une longue longue longue longue longue longue longue longue longue longue longue longue longue ligne\n"
 	"un peu d'unicode: ä æ ç\n"
@@ -511,11 +513,11 @@ int main()
 			if (glo)
 				win_redraw_frame();
 			else
-				win_redraw(w);
+				win_move(w, 0, 0, 0);
 			if (e.key == 'l' || e.key == 'h')
-			if (w->cu < w->start || w->cu >= w->stop) {
+			if (w->cu < w->l[0] || w->cu >= w->l[w->nl]) {
 				win_show_cursor(w, cloc);
-				win_redraw(w);
+				win_move(w, 0, 0, 0);
 			}
 
 		}

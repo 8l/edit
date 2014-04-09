@@ -59,9 +59,9 @@ main(int ac, char *av[])
 			break;
 		case GKey:
 			cmd_parse(e.key);
-			if (curwin->cu >= curwin->stop)
+			if (curwin->cu >= curwin->l[curwin->nl])
 				win_show_cursor(curwin, CBot);
-			if (curwin->cu < curwin->start)
+			if (curwin->cu < curwin->l[0])
 				win_show_cursor(curwin, CTop);
 			win_redraw_frame();
 			break;

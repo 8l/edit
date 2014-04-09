@@ -11,14 +11,16 @@ typedef struct w W;
 enum {
 	FScale = 16384,     /* fixed point scale for fractions */
 	TabWidth = 8,       /* tabulation width */
-	MaxWidth = 500,     /* maximum width of the screen */
+	MaxWidth = 500,     /* maximum number of characters on a line */
+	MaxHeight = 500,    /* maximum number of lines */
 	HMargin = 12,       /* horizontal margin */
 	VMargin = 2,        /* vertical margin */
-	MaxWins = 6,        /* maximal number of windows */
+	MaxWins = 6,        /* maximum number of windows */
 };
 
 struct w {
-	unsigned start, stop;  /* offset of the first/last character displayed */
+	unsigned l[MaxHeight]; /* line start offsets */
+	int nl;                /* current number of lines */
 	unsigned cu;           /* cursor offset */
 	int hrig;              /* horizontal rigidity */
 	EBuf *eb;              /* underlying buffer object */
@@ -30,7 +32,7 @@ enum CursorLoc { CTop, CMid, CBot };
 void win_init(struct gui *g);
 W *win_new(EBuf *eb);
 void win_delete(W *);
-void win_redraw(W *);
+void win_move(W *, int, int, int);
 void win_resize_frame(int w, int h);
 void win_redraw_frame(void);
 void win_scroll(W *, int);
