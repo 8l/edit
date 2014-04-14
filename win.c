@@ -20,7 +20,6 @@ struct lineinfo {
 static void draw(W *w, GColor bg);
 static void update(W *w);
 static void lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li);
-static void lineinfo_(W *w, unsigned off, unsigned lim, struct lineinfo *li);
 
 static W wins[MaxWins];
 static struct {
@@ -181,7 +180,7 @@ win_scroll(W *w, int n)
 				break;
 			bol = buf_bol(&w->eb->b, start-1);
 
-			lineinfo_(w, bol, start-1, &li);
+			lineinfo(w, bol, start-1, &li);
 			top = li.len - 1;
 			assert(top >= 0);
 			for (; n<0 && top>=0; top--, n++) {
@@ -193,7 +192,7 @@ win_scroll(W *w, int n)
 		do {
 			int top;
 
-			lineinfo_(w, start, -1, &li);
+			lineinfo(w, start, -1, &li);
 			top = 1;
 			assert(top < li.len);
 			for (; n>0 && top<li.len; top++, n--) {
@@ -219,7 +218,7 @@ win_show_cursor(W *w, enum CursorLoc where)
 	unsigned bol;
 
 	bol = buf_bol(&w->eb->b, w->cu);
-	lineinfo_(w, bol, w->cu, &li);
+	lineinfo(w, bol, w->cu, &li);
 	assert(li.len > 0);
 	w->l[0] = li.sl[(li.beg + li.len-1) % RingSize];
 	if (where == CBot)
@@ -356,41 +355,12 @@ update(W *w)
 	int l, top;
 
 	for (l=1; l<=w->nl;) {
-		lineinfo_(w, w->l[l-1], -1, &li);
+		lineinfo(w, w->l[l-1], -1, &li);
 		top = 1;
 		assert(top<li.len);
 		for (; top<li.len; top++, l++)
 			w->l[l] = li.sl[(li.beg + top) % RingSize];
 	}
-}
-
-typedef int LineFn(void *data, unsigned off, Rune r, int x, int rw, int sl);
-
-static unsigned
-line(W *w, unsigned off, LineFn f, void *data)
-{
-	Rune r;
-	int l, x, rw;
-
-	r = 0;
-	l = 0;
-	x = 0;
-
-	for (; r != '\n'; x+=rw, off++) {
-		r = buf_get(&w->eb->b, off);
-		rw = runewidth(r, x);
-
-		if (HMargin+x+rw > w->gr.w)
-		if (x != 0) { /* force progress */
-			x = 0;
-			l++;
-		}
-
-		if (!f(data, off, r, HMargin+x, rw, l))
-			break;
-	}
-
-	return off;
 }
 
 static int
@@ -414,40 +384,14 @@ pushoff(struct lineinfo *li, unsigned off, int overwrite)
 	return 1;
 }
 
-struct lstatus {
-	unsigned lim;
-	struct lineinfo *li;
-	int curl;
-};
-
-static int
-lineinfofn(void *data, unsigned off, Rune r, int x, int rw, int sl)
-{
-	struct lstatus *ls = data;
-
-	(void) r; (void) x; (void) rw;
-
-	if (off > ls->lim)
-		return 0;
-
-	if (ls->curl != sl) {
-		assert(ls->curl == sl-1);
-		ls->curl = sl;
-		return pushoff(ls->li, off, ls->lim != -1u);
-	}
-
-	return 1;
-}
-
-/* lineinfo - 
-
- * post: if lim != -1u, then li.len>1 at exit.
+/* lineinfo
  *
+ * post: if lim != -1u, then li.len>1 at exit.
  * note: lim == off is okay, only lim will be
  * in the lineinfo offset list in this case.
  */
 static void
-lineinfo_(W *w, unsigned off, unsigned lim, struct lineinfo *li)
+lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li)
 {
 	Rune r;
 	int x, rw;
@@ -492,24 +436,6 @@ lineinfo_(W *w, unsigned off, unsigned lim, struct lineinfo *li)
 		}
 	}
 }
-
-/* if [lim == -1] the lineinfo will only contain information
- * about the first RingSize screen lines
- */
-static void
-lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li)
-{
-	struct lstatus ls;
-
-	ls.lim  = lim;
-	ls.li   = li;
-	ls.curl = 0;
-
-	pushoff(li, off, lim != -1u);
-	off = line(w, off, lineinfofn, &ls);
-	pushoff(li, off, lim != -1u);
-}
-
 
 
 #ifdef WIN_TEST
