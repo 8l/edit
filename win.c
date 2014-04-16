@@ -9,8 +9,7 @@
 #include "gui.h"
 #include "win.h"
 
-enum { RingSize = 2 }; /* bigger is (a bit) faster */
-_Static_assert(RingSize >= 2, "RingSize must be at least 2");
+enum { RingSize = 1 }; /* bigger is (a bit) faster */
 
 struct lineinfo {
 	int beg, len;
@@ -180,9 +179,9 @@ win_scroll(W *w, int n)
 				break;
 			bol = buf_bol(&w->eb->b, start-1);
 
-			lineinfo(w, bol, start-1, &li);
+			lineinfo(w, bol-1, start-1, &li);
+			assert(li.len > 0);
 			top = li.len - 1;
-			assert(top >= 0);
 			for (; n<0 && top>=0; top--, n++) {
 				start = li.sl[(li.beg + top) % RingSize];
 				assert(start < w->l[0]);
@@ -193,8 +192,8 @@ win_scroll(W *w, int n)
 			int top;
 
 			lineinfo(w, start, -1, &li);
-			top = 1;
-			assert(top < li.len);
+			assert(li.len > 0);
+			top = 0;
 			for (; n>0 && top<li.len; top++, n--) {
 				start = li.sl[(li.beg + top) % RingSize];
 				assert(start > w->l[0] || w->l[0] >= w->eb->b.limbo);
@@ -218,7 +217,7 @@ win_show_cursor(W *w, enum CursorLoc where)
 	unsigned bol;
 
 	bol = buf_bol(&w->eb->b, w->cu);
-	lineinfo(w, bol, w->cu, &li);
+	lineinfo(w, bol-1, w->cu, &li);
 	assert(li.len > 0);
 	w->l[0] = li.sl[(li.beg + li.len-1) % RingSize];
 	if (where == CBot)
@@ -356,8 +355,8 @@ update(W *w)
 
 	for (l=1; l<=w->nl;) {
 		lineinfo(w, w->l[l-1], -1, &li);
-		top = 1;
-		assert(top<li.len);
+		assert(li.len > 0);
+		top = 0;
 		for (; top<li.len; top++, l++)
 			w->l[l] = li.sl[(li.beg + top) % RingSize];
 	}
@@ -389,6 +388,9 @@ pushoff(struct lineinfo *li, unsigned off, int overwrite)
  * post: if lim != -1u, then li.len>1 at exit.
  * note: lim == off is okay, only lim will be
  * in the lineinfo offset list in this case.
+ * note: there is a special case when off == -1u
+ * to avoid special cases for the first line
+ * in the buffer.
  */
 static void
 lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li)
@@ -399,7 +401,6 @@ lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li)
 	li->beg = li->len = 0;
 	x = 0;
 
-	pushoff(li, off, lim != -1u);
 	while (1) {
 		r = buf_get(&w->eb->b, off);
 		rw = runewidth(r, x);
@@ -423,7 +424,7 @@ lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li)
 		 * |^        |
 		 *   lim
 		 */
-		if (off >= lim)
+		if (off != -1u && off >= lim)
 			break;
 
 		x += rw;
