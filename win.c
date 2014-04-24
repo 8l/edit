@@ -17,7 +17,7 @@ struct lineinfo {
 };
 
 static void draw(W *w, GColor bg);
-static void update(W *w);
+static void move(W *pw, int x, int w, int h);
 static void lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li);
 
 static W wins[MaxWins];
@@ -77,6 +77,7 @@ win_new(EBuf *eb)
 	w->eb = eb;
 	w->gr = (GRect){0, 0, fwidth, fheight};
 	w->hrig = 500;
+	win_update(w);
 
 	return w;
 }
@@ -93,32 +94,6 @@ win_delete(W *w)
 	w->eb = 0;
 }
 
-/* win_move - Position and redraw a given window, if one
- * dimension is null, simply redraw the window.
- */
-void
-win_move(W *pw, int x, int w, int h)
-{
-	GColor bg;
-
-	if (w!=0 && h!=0) {
-		pw->gr = (GRect){x, 0, w, h};
-		pw->nl = (h - VMargin) / font.height;
-		assert(pw->nl < MaxHeight);
-	}
-
-	if (pw == &tag.win)
-		bg = GPaleGreen;
-	else
-		bg = GPaleYellow;
-
-	update(pw);
-	draw(pw, bg);
-
-	if (tag.visible && tag.owner == pw)
-		win_move(&tag.win, 0, 0, 0);
-}
-
 /* win_resize_frame - Called when the whole frame
  * is resized.
  */
@@ -128,10 +103,9 @@ win_resize_frame(int w, int h)
 	int x, ww, rig;
 	W *pw;
 
-	if (w!=0 && h!=0) {
-		fwidth = w;
-		fheight = h;
-	}
+	assert(w!=0 && h!=0);
+	fwidth = w;
+	fheight = h;
 
 	for (rig=0, pw=wins; pw-wins<MaxWins; pw++)
 		rig += pw->hrig;
@@ -139,9 +113,9 @@ win_resize_frame(int w, int h)
 	for (x=0, pw=wins; pw-wins<MaxWins; pw++)
 		if (pw->eb) {
 			ww = (fwidth * pw->hrig) / rig;
-			win_move(pw, x, ww, fheight);
+			move(pw, x, ww, fheight);
 			if (tag.visible && tag.owner == pw) {
-				tag.visible = 0;
+				win_tag_toggle(pw);
 				win_tag_toggle(pw);
 			}
 			x += ww;
@@ -153,7 +127,15 @@ win_resize_frame(int w, int h)
 void
 win_redraw_frame()
 {
-	win_resize_frame(0, 0);
+	W *w;
+
+	for (w=wins; w-wins<MaxWins; w++)
+		if (w->eb && w->dirty) {
+			draw(w, GPaleYellow);
+			w->dirty = 0;
+			if (tag.visible && tag.owner == w)
+				draw(&tag.win, GPaleGreen);
+		}
 }
 
 /* win_scroll - Scroll the window by [n] lines.
@@ -202,7 +184,7 @@ win_scroll(W *w, int n)
 	}
 
 	w->l[0] = start;
-	update(w);
+	win_update(w);
 }
 
 /* win_show_cursor - Find the cursor in [w] and adjust
@@ -225,7 +207,7 @@ win_show_cursor(W *w, enum CursorLoc where)
 	else if (where == CMid)
 		win_scroll(w, -w->nl / 2);
 	else
-		update(w);
+		win_update(w);
 }
 
 W *
@@ -235,7 +217,7 @@ win_tag_win()
 }
 
 W *
-win_tag_owner()
+win_tag_owner() /* not exported XXX */
 {
 	assert(tag.visible);
 	return tag.owner;
@@ -246,16 +228,38 @@ win_tag_toggle(W *w)
 {
 	if (tag.visible) {
 		tag.visible = 0;
-		win_move(tag.owner, 0, 0, 0);
+		tag.owner->dirty = 1;
 		if (w == tag.owner)
 			return;
 	}
 
 	tag.visible = 1;
 	tag.owner = w;
-	win_move(&tag.win, w->gr.x, w->gr.w, w->gr.h/3);
+	move(&tag.win, w->gr.x, w->gr.w, w->gr.h/3);
+	w->dirty = 1;
 
 	return;
+}
+
+/* win_update - Recompute the appearance of the window,
+ * this should be called whenever the content of the underlying
+ * buffer changes or when the dimensions of the window have
+ * changed.
+ */
+void
+win_update(W *w)
+{
+	struct lineinfo li;
+	int l, top;
+
+	for (l=1; l<=w->nl;) {
+		lineinfo(w, w->l[l-1], -1, &li);
+		assert(li.len > 0);
+		top = 0;
+		for (; top<li.len; top++, l++)
+			w->l[l] = li.sl[(li.beg + top) % RingSize];
+	}
+	w->dirty = 1;
 }
 
 /* static functions */
@@ -347,19 +351,19 @@ draw(W *w, GColor bg)
 		g->drawrect(&w->gr, cx, cy, cw, font.height, GXBlack);
 }
 
-static void
-update(W *w)
+/* move - Resize and recompute appearance
+ * of a window, dimensions must be non-zero.
+ */
+void
+move(W *pw, int x, int w, int h)
 {
-	struct lineinfo li;
-	int l, top;
+	assert(w!=0 && h!=0);
 
-	for (l=1; l<=w->nl;) {
-		lineinfo(w, w->l[l-1], -1, &li);
-		assert(li.len > 0);
-		top = 0;
-		for (; top<li.len; top++, l++)
-			w->l[l] = li.sl[(li.beg + top) % RingSize];
-	}
+	pw->gr = (GRect){x, 0, w, h};
+	pw->nl = (h - VMargin) / font.height;
+	assert(pw->nl > 0 && pw->nl < MaxHeight);
+
+	win_update(pw);
 }
 
 static int
@@ -472,18 +476,18 @@ int main()
 		eb_ins_utf8(tag.win.eb, 0, (unsigned char *)"TAG WINDOW\n", 10);
 
 	do {
+		win_redraw_frame();
 		g->nextevent(&e);
 		if (e.type == GResize)
 			win_resize_frame(e.resize.width, e.resize.height);
 		if (e.type == GKey) {
-			int glo = 0;
 			switch (e.key) {
 			case 'l': ++w->cu; cloc = CBot; break;
 			case 'h': if (w->cu) --w->cu; cloc = CTop; break;
 			case 'e'-'a' + 1: win_scroll(w,  1); break;
 			case 'y'-'a' + 1: win_scroll(w, -1); break;
-			case '+': glo=1; if (w->hrig < 25000) w->hrig += 1 + w->hrig/10; break;
-			case '-': glo=1; if (w->hrig > 10) w->hrig -= 1 + w->hrig/10; break;
+			case '+': if (w->hrig < 25000) w->hrig += 1 + w->hrig/10; break;
+			case '-': if (w->hrig > 10) w->hrig -= 1 + w->hrig/10; break;
 			case 'l'-'a'+1: win_show_cursor(w, CMid); break;
 			default:
 				if (e.key >= '1' && e.key <= '9') {
@@ -493,16 +497,11 @@ int main()
 				}
 				continue;
 			}
-			if (glo)
-				win_redraw_frame();
-			else
-				win_move(w, 0, 0, 0);
-			if (e.key == 'l' || e.key == 'h')
-			if (w->cu < w->l[0] || w->cu >= w->l[w->nl]) {
-				win_show_cursor(w, cloc);
-				win_move(w, 0, 0, 0);
+			win_update(w);
+			if (e.key == 'l' || e.key == 'h') {
+				if (w->cu < w->l[0] || w->cu >= w->l[w->nl])
+						win_show_cursor(w, cloc);
 			}
-
 		}
 	} while (e.type != GKey || e.key != 'q');
 

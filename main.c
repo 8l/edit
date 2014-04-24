@@ -11,6 +11,7 @@
 #include "win.h"
 
 W *curwin;
+int scrolling;
 int exiting;
 
 void
@@ -59,15 +60,25 @@ main(int ac, char *av[])
 			break;
 		case GKey:
 			cmd_parse(e.key);
+			win_update(curwin);
+
+			if (!scrolling) {
+				if (curwin->cu >= curwin->l[curwin->nl])
+					win_show_cursor(curwin, CBot);
+				if (curwin->cu < curwin->l[0])
+					win_show_cursor(curwin, CTop);
+			}
 			if (curwin->cu >= curwin->l[curwin->nl])
-				win_show_cursor(curwin, CBot);
+				curwin->cu = curwin->l[curwin->nl-1];
 			if (curwin->cu < curwin->l[0])
-				win_show_cursor(curwin, CTop);
-			win_redraw_frame();
+				curwin->cu = curwin->l[0];
+
+			scrolling = 0;
 			break;
 		default:
 			break;
 		}
+		win_redraw_frame();
 	}
 }
 

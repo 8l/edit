@@ -21,6 +21,7 @@ enum {
 struct w {
 	unsigned l[MaxHeight]; /* line start offsets */
 	int nl;                /* current number of lines */
+	int dirty;             /* dirty bit */
 	unsigned cu;           /* cursor offset */
 	int hrig;              /* horizontal rigidity */
 	EBuf *eb;              /* underlying buffer object */
@@ -32,13 +33,12 @@ enum CursorLoc { CTop, CMid, CBot };
 void win_init(struct gui *g);
 W *win_new(EBuf *eb);
 void win_delete(W *);
-void win_move(W *, int, int, int);
 void win_resize_frame(int w, int h);
 void win_redraw_frame(void);
 void win_scroll(W *, int);
 void win_show_cursor(W *, enum CursorLoc);
 W *win_tag_win(void);
-W *win_tag_owner(void);
 void win_tag_toggle(W *);
+void win_update(W *);
 
 #endif /* ndef WIN_H */
