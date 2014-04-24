@@ -958,6 +958,40 @@ static int a_exit(char buf, Cmd c, Cmd mc)
 	return (exiting = 1);
 }
 
+@ Scrolling is a simple matter of calling the window module.
+To avoid confusing the cursor management code we signal that
+we are scrolling the screen using the global variable
+|scrolling|.  This will prevent the editor to adjust the
+screen offset if the cursor goes out of view.
+
+@<Subr...@>=
+static int a_scroll(char buf, Cmd c, Cmd mc)
+{
+	extern int scrolling;
+	static int lastud = 0;
+	int cnt;
+
+	(void) buf; @+(void) mc;
+	scrolling = 1;
+	switch (c.chr) {
+	case CTRL('E'):
+		cnt = +c.count;
+		@+break;
+	case CTRL('Y'):
+		cnt = -c.count;
+		@+break;
+	case CTRL('U'):
+	case CTRL('D'):
+		if (c.count) lastud = c.count;
+		cnt = curwin->nl / 3;
+		if (lastud) cnt = lastud;
+		if (c.chr == CTRL('U')) cnt = -cnt;
+		break;
+	}
+	win_scroll(curwin, cnt);
+	return 0;
+}
+
 @ The insertion commands are all treated in the following procedure.
 The only tricky case in this code is the handling of the \.O command. We
 first split the current line at the end of the indentation then rely
@@ -1103,7 +1137,7 @@ typedef int @[@] cmd_t(char, Cmd, Cmd);
 array below.
 
 @<Predecl...@>=
-static cmd_t a_d, a_c, a_y, a_pP, a_ins, a_write, a_exit;
+static cmd_t a_d, a_c, a_y, a_pP, a_ins, a_scroll, a_write, a_exit;
 
 @ @<Other key fields@>=
 union {
@@ -1134,6 +1168,9 @@ union {
 ['o'] = Act(0, a_ins), ['O'] = Act(0, a_ins),@/
 ['p'] = Act(0, a_pP), ['P'] = Act(0, a_pP),@/
 ['.'] = Act(CZeroCount, 0),@/
+[CTRL('D')] = Act(CZeroCount, a_scroll),@/
+[CTRL('U')] = Act(CZeroCount, a_scroll),@/
+[CTRL('E')] = Act(0, a_scroll), [CTRL('Y')] = Act(0, a_scroll),@/
 [CTRL('W')] = Act(0, a_write), [CTRL('Q')] = Act(0, a_exit),
 
 @** Index.
