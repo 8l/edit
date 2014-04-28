@@ -439,11 +439,19 @@ static int m_jk(int ismotion, Cmd c, Motion *m)
 		m->end = buf_setlc(curb, line + c.count, col);
 	if (ismotion) {
 		if (c.chr == 'k') swap(m->beg, m->end);
-		m->beg = buf_bol(curb, m->beg);
-		m->end = buf_eol(curb, m->end) + 1;
+		@<Extend the motion range to lines@>;
 	}
-	m->linewise = 1;
 	return 0;
+}
+
+@ Linewise motions have to be extended to range over full lines,
+they include the last newline character.
+
+@<Extend the motion range to lines@>=
+{
+	m->linewise = 1;
+	m->beg = buf_bol(curb, m->beg);
+	m->end = buf_eol(curb, m->end) + 1;
 }
 
 @ Another family of useful and easy to implement motions are the line
@@ -533,14 +541,12 @@ static int m_eol(int ismotion, Cmd c, Motion  *m)
 	unsigned bol = buf_bol(curb, m->beg);
 	int l, x;
 
-	if (c.count > 1 && blkspn(bol) >= m->beg)
-		m->linewise = 1, m->beg = bol;
 
 	buf_getlc(curb, m->beg, &l, &x);
 	m->end = buf_eol(curb, buf_setlc(curb, l + c.count - 1, 0)) - 1;
 	if (ismotion || buf_get(curb, m->end) == '\n') m->end++;
-	if (ismotion && m->linewise)
-		m->end++; // eat the last |'\n'| if the motion is linewise
+	if (ismotion && c.count > 1 && blkspn(bol) >= m->beg)
+		m->linewise = 1, m->beg = bol, m->end++;
 
 	return ismotion && c.count == 1 && m->end == m->beg;
 }
@@ -774,11 +780,8 @@ convenient for programming languages with blocks like C.
 	if (dp == -1) swap(m->beg, m->end);
 	m->end++; // get past the closing delimiter
 	if (blkspn(buf_bol(curb, m->beg)) >= m->beg
-	&& blkspn(m->end) == buf_eol(curb, m->end)) {
-		m->linewise = 1;
-		m->beg = buf_bol(curb, m->beg);
-		m->end = buf_eol(curb, m->end) + 1;
-	}
+	&& blkspn(m->end) == buf_eol(curb, m->end))
+		@<Extend the motion range...@>;
 }
 
 @ @<Predecl...@>=
@@ -796,14 +799,45 @@ static int m_G(int ismotion, Cmd c, Motion *m)
 	if (!ismotion)
 		m->end = blkspn(m->end);
 	else {
-		m->linewise = 1;
-		m->end = buf_eol(curb, m->end) + 1;
+		if (m->end < m->beg) swap(m->beg, m->end);
+		@<Extend the motion range...@>;
+	}
+	return 0;
+}
+
+@ The \.H, \.L, and \.M motions are relative to the screen, the motion
+destination depends on the screen contents.  We get this information
+using the window module.  Older implementations used the buffer contents
+and counted newlines, this did not work well with line wrapping and
+would be a real mess with variable width font.
+
+@<Subr...@>=
+static int m_HML(int ismotion, Cmd c, Motion *m)
+{
+	if ((c.chr == 'H' || c.chr == 'L')
+	&& c.count > curwin->nl)
+		return 1;
+	switch (c.chr) {
+	case 'H':
+		m->end = curwin->l[c.count-1];
+		@+break;
+	case 'L':
+		m->end = curwin->l[curwin->nl-c.count];
+		@+break;
+	case 'M':
+		m->end = curwin->l[curwin->nl/2];
+		@+break;
+	}
+	if (ismotion) {
+		if (m->end < m->beg) swap(m->beg, m->end);
+		@<Extend the motion range...@>;
 	}
 	return 0;
 }
 
 @ @<Predecl...@>=
 static int m_G(int, Cmd, Motion *);
+static int m_HML(int, Cmd, Motion *);
 
 @*1 Hacking the motion commands. Here is a short list of things you
 want to know if you start hacking either the motion commands, or any
@@ -1161,6 +1195,8 @@ union {
 ['b'] = Mtn(0, m_bB), ['B'] = Mtn(0, m_bB),@/
 ['{'] = Mtn(0, m_par), ['}'] = Mtn(0, m_par),@/
 ['%'] = Mtn(0, m_match), ['G'] = Mtn(CZeroCount, m_G),@/
+['H'] = Mtn(0, m_HML), ['L'] = Mtn(0, m_HML),@/
+['M'] = Mtn(0, m_HML),@/
 ['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_d),@/
 ['c'] = Act(CHasMotion, a_c), ['y'] = Act(CHasMotion, a_y),@/
 ['i'] = Act(0, a_ins), ['I'] = Act(0, a_ins),@/
