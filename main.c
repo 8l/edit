@@ -61,23 +61,21 @@ main(int ac, char *av[])
 		case GKey:
 			cmd_parse(e.key);
 			win_update(curwin);
-
 			if (!scrolling) {
 				if (curwin->cu >= curwin->l[curwin->nl])
 					win_show_cursor(curwin, CBot);
 				if (curwin->cu < curwin->l[0])
 					win_show_cursor(curwin, CTop);
 			}
-			if (curwin->cu >= curwin->l[curwin->nl])
-				curwin->cu = curwin->l[curwin->nl-1];
-			if (curwin->cu < curwin->l[0])
-				curwin->cu = curwin->l[0];
-
 			scrolling = 0;
 			break;
 		default:
 			break;
 		}
+		if (curwin->cu >= curwin->l[curwin->nl])
+			curwin->cu = curwin->l[curwin->nl-1];
+		if (curwin->cu < curwin->l[0])
+			curwin->cu = curwin->l[0];
 		win_redraw_frame();
 	}
 }
