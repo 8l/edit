@@ -133,9 +133,11 @@ win_redraw_frame()
 		if (w->eb && w->dirty) {
 			draw(w, GPaleYellow);
 			w->dirty = 0;
-			if (tag.visible && tag.owner == w)
-				draw(&tag.win, GPaleGreen);
+			if (tag.owner == w)
+				tag.win.dirty = 1;
 		}
+	if (tag.visible && tag.win.dirty)
+		draw(&tag.win, GPaleGreen);
 }
 
 /* win_scroll - Scroll the window by [n] lines.
@@ -211,26 +213,13 @@ win_show_cursor(W *w, enum CursorLoc where)
 }
 
 W *
-win_tag_win()
-{
-	return &tag.win;
-}
-
-W *
-win_tag_owner() /* not exported XXX */
-{
-	assert(tag.visible);
-	return tag.owner;
-}
-
-void
 win_tag_toggle(W *w)
 {
 	if (tag.visible) {
 		tag.visible = 0;
 		tag.owner->dirty = 1;
-		if (w == tag.owner)
-			return;
+		if (w == &tag.win)
+			return tag.owner;
 	}
 
 	tag.visible = 1;
@@ -238,7 +227,7 @@ win_tag_toggle(W *w)
 	move(&tag.win, w->gr.x, w->gr.w, w->gr.h/3);
 	w->dirty = 1;
 
-	return;
+	return &tag.win;
 }
 
 /* win_update - Recompute the appearance of the window,

@@ -82,6 +82,8 @@ enum {
 	GKBackspace,
 };
 
+#define CTRL(x) ((x) ^ 64)
+
 struct gui {
 	void (*init)(void);
 	void (*fini)(void);

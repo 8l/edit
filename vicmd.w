@@ -25,7 +25,7 @@ then executed on the currently focused window.  We try to follow the
 @<Subroutines and commands@>@/
 @<Definition of the parsing function |cmd_parse|@>
 
-@ We need to edit buffers, have the rune and window types available. 
+@ We need to edit buffers, have the rune and window types available.
 This module header file is also included to allow the compiler to check
 consistency between definitions and declarations.  For debugging
 purposes we also include \.{stdio.h}.
@@ -529,7 +529,7 @@ static int m_bol(int ismotion, Cmd c, Motion *m)
 	if (ismotion && m->end < m->beg) swap(m->beg, m->end);
 	return ismotion && m->end == m->beg;
 }
- 
+
 @ The \.\$ command moves to the end of line.  This command accepts
 a count argument to move to the end of the $n$-th line after the
 current one.  Note that it can be a linewise motion depending on
@@ -1026,6 +1026,20 @@ static int a_scroll(char buf, Cmd c, Cmd mc)
 	return 0;
 }
 
+@ The tag window is a specific to this implementation, pressing
+\.{^T} toggles the tag window which is simply a scratch buffer
+used to perform complex actions on the underlying main window.
+This is a concept taken from Pike's Acme text editor and adapted
+to a keyboard driven editor with minimal visual footprint.
+
+@<Subr...@>=
+static int a_tag(char buf, Cmd c, Cmd mc)
+{
+	(void)buf; @+(void) c; @+(void) mc;
+	curwin = win_tag_toggle(curwin);
+	return 0;
+}
+
 @ The insertion commands are all treated in the following procedure.
 The only tricky case in this code is the handling of the \.O command. We
 first split the current line at the end of the indentation then rely
@@ -1061,6 +1075,8 @@ regular commands.  To implement these two commands, each successfully
 executed action together with the {\sl undo direction} are remembered
 in static variables.
 
+@d risctrl(r) (r < 0x1b)
+
 @<Subr...@>=
 static void docmd(char buf, Cmd c, Cmd m)
 {
@@ -1079,7 +1095,7 @@ static void docmd(char buf, Cmd c, Cmd m)
 	@<Handle the undo command@>;
 
 	if (keys[c.chr].cmd != 0) {
-		if (keys[c.chr].cmd(buf, c, m))
+		if (keys[c.chr].cmd(buf, c, m) || risctrl(c.chr))
 			return;
 		lastbuf = buf, lastc = c, lastm = m;
 	}
@@ -1171,7 +1187,7 @@ typedef int @[@] cmd_t(char, Cmd, Cmd);
 array below.
 
 @<Predecl...@>=
-static cmd_t a_d, a_c, a_y, a_pP, a_ins, a_scroll, a_write, a_exit;
+static cmd_t a_d, a_c, a_y, a_pP, a_ins, a_scroll, a_tag, a_write, a_exit;
 
 @ @<Other key fields@>=
 union {
@@ -1181,7 +1197,6 @@ union {
 
 @ @d Mtn(flags, f) {@+CIsMotion|flags, .motion = f}
 @d Act(flags, f) {@+flags, .cmd = f}
-@d CTRL(x) ((x) ^ 64)
 @<Key def...@>=
 ['h'] = Mtn(0, m_hl), ['l'] = Mtn(0, m_hl),@/
 ['j'] = Mtn(0,m_jk), ['k'] = Mtn(0, m_jk),@/
@@ -1207,6 +1222,7 @@ union {
 [CTRL('D')] = Act(CZeroCount, a_scroll),@/
 [CTRL('U')] = Act(CZeroCount, a_scroll),@/
 [CTRL('E')] = Act(0, a_scroll), [CTRL('Y')] = Act(0, a_scroll),@/
+[CTRL('T')] = Act(0, a_tag),@/
 [CTRL('W')] = Act(0, a_write), [CTRL('Q')] = Act(0, a_exit),
 
 @** Index.
