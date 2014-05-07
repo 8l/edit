@@ -1026,11 +1026,11 @@ static int a_scroll(char buf, Cmd c, Cmd mc)
 	return 0;
 }
 
-@ The tag window is a specific to this implementation, pressing
-\.{^T} toggles the tag window which is simply a scratch buffer
-used to perform complex actions on the underlying main window.
-This is a concept taken from Pike's Acme text editor and adapted
-to a keyboard driven editor with minimal visual footprint.
+@ The tag window is a specific to this implementation, \.{\^T}
+toggles the tag window.  This is a scratch area used to input
+complex commands acting on the underlying main window.  This
+concept is taken from Pike's Acme text editor and adapted to a
+keyboard driven editor with minimal visual footprint.
 
 @<Subr...@>=
 static int a_tag(char buf, Cmd c, Cmd mc)
