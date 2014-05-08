@@ -201,23 +201,25 @@ nextevent(GEvent *gev)
 				gev->type = GButRelease;
 			switch (e.xbutton.button) {
 			case Button1:
-				gev->button = GBLeft;
+				gev->button.type = GBLeft;
 				break;
 			case Button2:
-				gev->button = GBMiddle;
+				gev->button.type = GBMiddle;
 				break;
 			case Button3:
-				gev->button = GBRight;
+				gev->button.type = GBRight;
 				break;
 			case Button4:
-				gev->button = GBWheelUp;
+				gev->button.type = GBWheelUp;
 				break;
 			case Button5:
-				gev->button = GBWheelDown;
+				gev->button.type = GBWheelDown;
 				break;
 			default:
 				continue;
 			}
+			gev->button.x = e.xbutton.x;
+			gev->button.y = e.xbutton.y;
 			break;
 
 		case KeyPress:

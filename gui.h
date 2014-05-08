@@ -48,12 +48,16 @@ struct gevent {
 			int height;
 		} resize;
 		Rune key;
-		enum {
-			GBLeft,
-			GBMiddle,
-			GBRight,
-			GBWheelUp,
-			GBWheelDown,
+		struct {
+			enum {
+				GBLeft,
+				GBMiddle,
+				GBRight,
+				GBWheelUp,
+				GBWheelDown,
+			} type;
+			int x;
+			int y;
 		} button;
 	};
 };
