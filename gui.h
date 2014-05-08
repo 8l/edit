@@ -38,8 +38,7 @@ struct gevent {
 	enum {
 		GResize,
 		GKey,
-		GButPress,
-		GButRelease,
+		GMouse,
 	} type;
 
 	union {
@@ -55,10 +54,10 @@ struct gevent {
 				GBRight,
 				GBWheelUp,
 				GBWheelDown,
-			} type;
+			} button;
 			int x;
 			int y;
-		} button;
+		} mouse;
 	};
 };
 

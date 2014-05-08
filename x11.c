@@ -194,32 +194,30 @@ nextevent(GEvent *gev)
 			break;
 
 		case ButtonPress:
-		case ButtonRelease:
-			if (e.type == ButtonPress)
-				gev->type = GButPress;
-			else
-				gev->type = GButRelease;
+			gev->type = GMouse;
+
 			switch (e.xbutton.button) {
 			case Button1:
-				gev->button.type = GBLeft;
+				gev->mouse.button = GBLeft;
 				break;
 			case Button2:
-				gev->button.type = GBMiddle;
+				gev->mouse.button = GBMiddle;
 				break;
 			case Button3:
-				gev->button.type = GBRight;
+				gev->mouse.button = GBRight;
 				break;
 			case Button4:
-				gev->button.type = GBWheelUp;
+				gev->mouse.button = GBWheelUp;
 				break;
 			case Button5:
-				gev->button.type = GBWheelDown;
+				gev->mouse.button = GBWheelDown;
 				break;
 			default:
 				continue;
 			}
-			gev->button.x = e.xbutton.x;
-			gev->button.y = e.xbutton.y;
+
+			gev->mouse.x = e.xbutton.x;
+			gev->mouse.y = e.xbutton.y;
 			break;
 
 		case KeyPress:

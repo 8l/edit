@@ -69,9 +69,9 @@ main(int ac, char *av[])
 			}
 			scrolling = 0;
 			break;
-		case GButPress:
-			if (e.button.type == GBLeft)
-				win_set_cursor(curwin, e.button.x, e.button.y);
+		case GMouse:
+			if (e.mouse.button == GBLeft)
+				win_set_cursor(curwin, e.mouse.x, e.mouse.y);
 			break;
 		default:
 			break;
