@@ -19,6 +19,7 @@ struct lineinfo {
 static void draw(W *w, GColor bg);
 static void move(W *pw, int x, int w, int h);
 static void lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li);
+static int runewidth(Rune r, int x);
 
 static W wins[MaxWins];
 static struct {
@@ -187,6 +188,31 @@ win_scroll(W *w, int n)
 
 	w->l[0] = start;
 	win_update(w);
+}
+
+/* win_set_cursor - Changes the cursor of [w] to be on
+ * on the rune displayed at position [x], [y]. The window
+ * [w] is marked for redraw.
+ */
+void
+win_set_cursor(W *w, int x, int y)
+{
+	int lx;
+	unsigned p;
+
+	y = (y - VMargin) / font.height;
+	if (y < 0 || y >= w->nl)
+		return;
+
+	p = w->l[y];
+	lx = 0;
+	for (; p < w ->l[y+1] - 1; p++) {
+		lx += runewidth(buf_get(&w->eb->b, p), lx);
+		if (lx + HMargin >= x)
+			break;
+	}
+	w->dirty = 1;
+	w->cu = p;
 }
 
 /* win_show_cursor - Find the cursor in [w] and adjust
