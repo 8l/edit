@@ -288,6 +288,30 @@ eb_getmark(EBuf *eb, Rune name)
 }
 
 int
+eb_read(EBuf *eb, char *path)
+{
+	FILE *fp = fopen((eb->path = path), "r");
+
+	if (!fp)
+		return 1;
+
+	for (unsigned char buf[11], *beg = buf;;) {
+		int rd, in, ins;
+
+		rd = fread(beg, 1, sizeof buf - (beg-buf), fp);
+		in = rd + (beg-buf);
+		ins = eb_ins_utf8(eb, eb->b.limbo, buf, in);
+
+		assert(rd != 0 || in == ins);
+		if (rd == 0)
+			break;
+		memmove(buf, buf+ins, in-ins);
+		beg = buf + (in-ins);
+	}
+	return 0;
+}
+
+int
 eb_write(EBuf *eb)
 {
 	FILE *fp = fopen(eb->path, "w");

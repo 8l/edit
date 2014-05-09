@@ -24,7 +24,6 @@ die(char *m)
 int
 main(int ac, char *av[])
 {
-	FILE *fp;
 	struct gui *g;
 	EBuf *eb;
 	GEvent e;
@@ -33,24 +32,8 @@ main(int ac, char *av[])
 	win_init(g);
 
 	eb = eb_new();
+	eb_read(eb, ac > 1 ? av[1] : "dummy.txt");
 	curwin = win_new(eb);
-
-	if (ac > 1 && (fp = fopen((eb->path = av[1]), "r"))) {
-		for (unsigned char buf[11], *beg = buf;;) {
-			int rd, in, ins;
-
-			rd = fread(beg, 1, sizeof buf - (beg-buf), fp);
-			in = rd + (beg-buf);
-			ins = eb_ins_utf8(eb, eb->b.limbo, buf, in);
-
-			assert(rd != 0 || in == ins);
-			if (rd == 0) break;
-			memmove(buf, buf+ins, in-ins);
-			beg = buf + (in-ins);
-		}
-		fclose(fp);
-	} else if (!eb->path)
-		eb->path = "dummy.txt";
 
 	while (!exiting) {
 		g->nextevent(&e);
