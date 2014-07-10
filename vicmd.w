@@ -839,6 +839,28 @@ static int m_HML(int ismotion, Cmd c, Motion *m)
 static int m_G(int, Cmd, Motion *);
 static int m_HML(int, Cmd, Motion *);
 
+@ Jumping to a given mark in the buffer can be done using either
+\.' or \.`.  Marks are inserted in the buffer with the \.m command.
+The \.' motion is a line motion and lands on the first non-blank
+character of the marked line; \.` is its character-wise counterpart.
+
+@<Subr...@>=
+static int m_mark(int ismotion, Cmd c, Motion *m)
+{
+	if ((m->end = eb_getmark(curwin->eb, c.arg)) == -1u)
+		return 1;
+	if (ismotion) {
+		if (m->end < m->beg) swap(m->beg, m->end);
+		if (c.chr == '\'') @<Extend the motion range...@>;
+	}
+	else if (c.chr == '\'')
+		m->end = blkspn(buf_bol(curb, m->end));
+	return 0;
+}
+
+@ @<Predecl...@>=
+static int m_mark(int, Cmd, Motion *);
+
 @*1 Hacking the motion commands. Here is a short list of things you
 want to know if you start hacking either the motion commands, or any
 function used to implement them.
@@ -971,6 +993,18 @@ static int a_c(char buf, Cmd c, Cmd mc)
 	}
 	eb_del(curwin->eb, curwin->cu = m.beg, m.end);
 	@<Switch to insertion mode@>;
+	return 0;
+}
+
+@ Editing positions can be memorized in marks, these marks are
+updated automatically in case changes occur in the buffer.  All
+the bookkeeping is done in the edition module.
+
+@<Subr...@>=
+static int a_m(char buf, Cmd c, Cmd mc)
+{
+	(void) buf;@+ (void) mc;
+	eb_setmark(curwin->eb, c.arg, curwin->cu);
 	return 0;
 }
 
@@ -1187,7 +1221,7 @@ typedef int @[@] cmd_t(char, Cmd, Cmd);
 array below.
 
 @<Predecl...@>=
-static cmd_t a_d, a_c, a_y, a_pP, a_ins, a_scroll, a_tag, a_write, a_exit;
+static cmd_t a_d, a_c, a_y, a_pP, a_m, a_ins, a_scroll, a_tag, a_write, a_exit;
 
 @ @<Other key fields@>=
 union {
@@ -1212,11 +1246,13 @@ union {
 ['%'] = Mtn(0, m_match), ['G'] = Mtn(CZeroCount, m_G),@/
 ['H'] = Mtn(0, m_HML), ['L'] = Mtn(0, m_HML),@/
 ['M'] = Mtn(0, m_HML),@/
+['\''] = Mtn(CHasArg, m_mark), ['`'] = Mtn(CHasArg, m_mark),@/
 ['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_d),@/
 ['c'] = Act(CHasMotion, a_c), ['y'] = Act(CHasMotion, a_y),@/
 ['i'] = Act(0, a_ins), ['I'] = Act(0, a_ins),@/
 ['a'] = Act(0, a_ins), ['A'] = Act(0, a_ins),@/
 ['o'] = Act(0, a_ins), ['O'] = Act(0, a_ins),@/
+['m'] = Act(CHasArg, a_m),@/
 ['p'] = Act(0, a_pP), ['P'] = Act(0, a_pP),@/
 ['.'] = Act(CZeroCount, 0),@/
 [CTRL('D')] = Act(CZeroCount, a_scroll),@/
