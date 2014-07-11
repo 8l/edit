@@ -34,7 +34,7 @@ $(OBJDIR)/%.c: %.w
 
 $(OBJDIR)/edit: $(OBJDIR) $(OBJFILES)
 	@echo ld $@
-	$(V)$(LD) -o $@ $(LDFLAGS) $(OBJFILES)
+	$(V)$(LD) -o $@ $(OBJFILES) $(LDFLAGS)
 
 $(OBJDIR):
 	@mkdir -p $@

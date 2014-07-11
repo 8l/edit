@@ -149,7 +149,6 @@ else {
 a digit.  If the rune we got is not one of these two we will
 signal an error and abort the current command parsing.
 
-@d risascii(r) ((r) < 0x7f)
 @d risbuf(r) (risascii(r) && (islower(r) || isdigit(r)))
 
 @<Input current buffer name@>=

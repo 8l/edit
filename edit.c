@@ -287,6 +287,32 @@ eb_getmark(EBuf *eb, Rune name)
 	return -1u;
 }
 
+unsigned
+eb_look(EBuf *eb, unsigned p, Rune *str, int n)
+{
+	int tbl[n], i, j;
+
+	assert(str && n >= 0);
+
+	/* String search using Knuth-Morris-Pratt. */
+	i = 0, j = -1;
+	tbl[i] = j;
+	while(i < n) {
+		while (j >= 0 && str[i] != str[j])
+			j = tbl[j];
+		i++, j++;
+		tbl[i] = j;
+	}
+	for (i = 0; p < eb->b.limbo; ) {
+		while (i >= 0 && buf_get(&eb->b, p) != str[i])
+			i = tbl[i];
+		p++, i++;
+		if (i == n)
+			return p - i;
+	}
+	return -1u;
+}
+
 int
 eb_read(EBuf *eb, char *path)
 {
