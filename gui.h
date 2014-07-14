@@ -17,6 +17,7 @@ struct gcolor {
 };
 
 #define GBlack      (GColor){ 0, 0, 0, 0 }
+#define GPaleBlue   (GColor){ 208, 235, 255, 0 }
 #define GPaleGreen  (GColor){ 231, 255, 221, 0 }
 #define GPalePink   (GColor){ 255, 248, 221, 0 }
 #define GPaleYellow (GColor){ 255, 255, 234, 0 }
