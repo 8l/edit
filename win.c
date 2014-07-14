@@ -311,8 +311,15 @@ pushfrag(struct frag *f, Rune r)
 }
 
 static void
-flushfrag(struct frag *f, W *w, int x, int y)
+flushfrag(struct frag *f, W *w, int x, int y, int sel)
 {
+	int fw, fh;
+
+	if (sel) {
+		fw = g->textwidth(f->b, f->n);
+		fh = font.height;
+		g->drawrect(&w->gr, f->x, f->y-font.ascent, fw, fh, GPaleBlue);
+	}
 	g->drawtext(&w->gr, f->b, f->n, f->x, f->y, GBlack);
 	f->n = 0;
 	f->x = x;
@@ -323,17 +330,23 @@ static void
 draw(W *w, GColor bg)
 {
 	struct frag f;
-	int x, y, cx, cy, cw, rw;
-	unsigned *next, c;
+	int x, y, cx, cy, cw, rw, sel;
+	unsigned *next, c, s0, s1;
 	Rune r;
+
+	s0 = eb_getmark(w->eb, SelBeg);
+	s1 = eb_getmark(w->eb, SelEnd);
+	if (s0 == -1u || s1 == -1u)
+		s0 = s1 = 0;
 
 	g->drawrect(&w->gr, 0, 0, w->gr.w, w->gr.h, bg);
 
+	sel = 0;
 	cw = 0;
 	x = HMargin;
 	y = VMargin + font.ascent;
 	f.n = 0;
-	flushfrag(&f, w, x, y);
+	flushfrag(&f, w, x, y, sel);
 	next = &w->l[1];
 
 	for (c=w->l[0]; c<w->l[w->nl]; c++) {
@@ -342,7 +355,12 @@ draw(W *w, GColor bg)
 			x = HMargin;
 			y += font.height;
 			next++;
-			flushfrag(&f, w, x, y);
+			flushfrag(&f, w, x, y, sel);
+		}
+
+		if (sel ^ (s0 <= c && c < s1)) {
+			flushfrag(&f, w, x, y, sel);
+			sel = !sel;
 		}
 
 		r = buf_get(&w->eb->b, c);
@@ -356,12 +374,12 @@ draw(W *w, GColor bg)
 
 		x += rw;
 		if (r == '\t')
-			flushfrag(&f, w, x, y);
+			flushfrag(&f, w, x, y, sel);
 		else if (r != '\n')
 			pushfrag(&f, r);
 	}
 
-	flushfrag(&f, w, 0, 0);
+	flushfrag(&f, w, 0, 0, sel);
 	if (cw != 0)
 		g->drawrect(&w->gr, cx, cy, cw, font.height, GXBlack);
 }
