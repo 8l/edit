@@ -928,11 +928,22 @@ static int yank(Motion *m, char buf, unsigned count, Cmd mc)
 	return 0;
 }
 
+@ In addition to the original \.{vi}, the yank command sets the text
+selection.  The selection mechanism is implemented using two
+special buffer marks defined in the edition module.
+
+@<Subr...@>=
 static int a_y(char buf, Cmd c, Cmd mc)
 {
-	return yank(&(Motion){0,0,0}, buf, c.count, mc);
-}
+	Motion m = {0, 0, 0};
+	int r = yank(&m, buf, c.count, mc);
 
+	if (r == 0) {
+		eb_setmark(curwin->eb, SelBeg, m.beg);
+		eb_setmark(curwin->eb, SelEnd, m.end);
+	}
+	return r;
+}
 
 @ Putting text back from buffers is a simple matter of figuring out
 which buffer to use.  Depending on the put command used, the text
@@ -1251,9 +1262,8 @@ union {
 ['i'] = Act(0, a_ins), ['I'] = Act(0, a_ins),@/
 ['a'] = Act(0, a_ins), ['A'] = Act(0, a_ins),@/
 ['o'] = Act(0, a_ins), ['O'] = Act(0, a_ins),@/
-['m'] = Act(CHasArg, a_m),@/
 ['p'] = Act(0, a_pP), ['P'] = Act(0, a_pP),@/
-['.'] = Act(CZeroCount, 0),@/
+['.'] = Act(CZeroCount, 0), ['m'] = Act(CHasArg, a_m),@/
 [CTRL('D')] = Act(CZeroCount, a_scroll),@/
 [CTRL('U')] = Act(CZeroCount, a_scroll),@/
 [CTRL('E')] = Act(0, a_scroll), [CTRL('Y')] = Act(0, a_scroll),@/
