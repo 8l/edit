@@ -4,6 +4,10 @@
 #include "unicode.h"
 #include "buf.h"
 
+/* special marks */
+#define SelBeg ((Rune) 'i')	/* selection start */
+#define SelEnd ((Rune) 'o')	/* selection end */
+
 typedef struct log  Log;
 typedef struct mark Mark;
 typedef struct ebuf EBuf;
