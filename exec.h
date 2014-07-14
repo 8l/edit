@@ -4,6 +4,7 @@
 #include "edit.h"
 #include "win.h"
 
-void exec_do(W *, EBuf *, unsigned);
+int ex_run(unsigned);
+int ex_look(W *, Rune *, unsigned);
 
 #endif /* ndef EXEC_H */

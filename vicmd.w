@@ -37,6 +37,7 @@ purposes we also include \.{stdio.h}.
 #include <stdlib.h>
 #include "unicode.h"
 #include "edit.h"
+#include "exec.h"
 #include "win.h"
 #include "cmd.h"
 
@@ -860,6 +861,28 @@ static int m_mark(int ismotion, Cmd c, Motion *m)
 @ @<Predecl...@>=
 static int m_mark(int, Cmd, Motion *);
 
+@ The search functionality in this editor differs pretty drastically from
+\.{vi}'s historical behavior.  Search is triggered by the \.n command
+only.  The string searched can be set using the built-in \.{Look}
+command.  When a match is found the selection is set to the matched
+text.  If the search hits limbo, it wraps around.  This aspect of the editor
+is borrowed from Pike's Acme.
+
+@<Subr...@>=
+static int m_n(int ismotion, Cmd c, Motion *m)
+{
+	(void) c;
+	if (ex_look(curwin, 0, 0))
+		return 1;
+	m->end = curwin->cu;
+	if (ismotion)
+		@<Extend the motion range...@>;
+	return 0;
+}
+
+@ @<Predecl...@>=
+static int m_n(int, Cmd, Motion *);
+
 @*1 Hacking the motion commands. Here is a short list of things you
 want to know if you start hacking either the motion commands, or any
 function used to implement them.
@@ -1084,6 +1107,13 @@ static int a_tag(char buf, Cmd c, Cmd mc)
 	return 0;
 }
 
+// XXX
+static int a_run(char buf, Cmd c, Cmd mc)
+{
+	(void)buf; @+(void) c; @+(void) mc;
+	return ex_run(curwin->cu);
+}
+
 @ The insertion commands are all treated in the following procedure.
 The only tricky case in this code is the handling of the \.O command. We
 first split the current line at the end of the indentation then rely
@@ -1231,7 +1261,7 @@ typedef int @[@] cmd_t(char, Cmd, Cmd);
 array below.
 
 @<Predecl...@>=
-static cmd_t a_d, a_c, a_y, a_pP, a_m, a_ins, a_scroll, a_tag, a_write, a_exit;
+static cmd_t a_d, a_c, a_y, a_pP, a_m, a_ins, a_run, a_scroll, a_tag, a_write, a_exit;
 
 @ @<Other key fields@>=
 union {
@@ -1256,6 +1286,7 @@ union {
 ['%'] = Mtn(0, m_match), ['G'] = Mtn(CZeroCount, m_G),@/
 ['H'] = Mtn(0, m_HML), ['L'] = Mtn(0, m_HML),@/
 ['M'] = Mtn(0, m_HML),@/
+['n'] = Mtn(0, m_n),@/
 ['\''] = Mtn(CHasArg, m_mark), ['`'] = Mtn(CHasArg, m_mark),@/
 ['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_d),@/
 ['c'] = Act(CHasMotion, a_c), ['y'] = Act(CHasMotion, a_y),@/
@@ -1267,7 +1298,7 @@ union {
 [CTRL('D')] = Act(CZeroCount, a_scroll),@/
 [CTRL('U')] = Act(CZeroCount, a_scroll),@/
 [CTRL('E')] = Act(0, a_scroll), [CTRL('Y')] = Act(0, a_scroll),@/
-[CTRL('T')] = Act(0, a_tag),@/
+[CTRL('T')] = Act(0, a_tag), [CTRL('I')] = Act(0, a_run),@/
 [CTRL('W')] = Act(0, a_write), [CTRL('Q')] = Act(0, a_exit),
 
 @** Index.
