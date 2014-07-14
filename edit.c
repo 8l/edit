@@ -41,7 +41,7 @@ struct log {
  */
 
 static void pushlog(Log *, int);
-static void rebase(Mark **, Log *);
+static void rebase(Mark *, Log *);
 static void puteb(EBuf *, FILE *);
 static void putrune(Rune, FILE *);
 
@@ -212,7 +212,7 @@ void
 eb_commit(EBuf *eb)
 {
 	log_commit(eb->undo);
-	rebase(&eb->ml, eb->undo->next);
+	rebase(eb->ml, eb->undo->next);
 }
 
 void
@@ -227,7 +227,7 @@ eb_undo(EBuf *eb, int undo, unsigned *pp)
 
 	if (u->next != 0) {
 		log_undo(u, &eb->b, r, pp);
-		rebase(&eb->ml, r->next);
+		rebase(eb->ml, r->next);
 	}
 }
 
@@ -376,7 +376,7 @@ pushlog(Log *log, int type)
 }
 
 static void
-rebase(Mark **pm, Log *log)
+rebase(Mark *ml, Log *log)
 {
 	Mark *m;
 
@@ -386,27 +386,22 @@ rebase(Mark **pm, Log *log)
 		/* we hit the previous commit, rebase is done */
 		return;
 
-	rebase(pm, log->next);
+	rebase(ml, log->next);
 
 	switch(log->type) {
 	case Insert:
-		for (m=*pm; m; m=m->next)
+		for (m=ml; m; m=m->next)
 			if (m->p >= log->p0)
 				m->p += log->np;
 		break;
 	case Delete:
-		while ((m=*pm)) {
+		for (m=ml; m; m=m->next)
 			if (m->p >= log->p0) {
-				if (m->p < log->p0 + log->np) {
-					/* the mark was deleted */
-					*pm = m->next;
-					free(m);
-					continue;
-				}
-				m->p -= log->np;
+				if (m->p < log->p0 + log->np)
+					m->p = log->p0;
+				else
+					m->p -= log->np;
 			}
-			pm = &m->next;
-		}
 		break;
 	default:
 		abort();
