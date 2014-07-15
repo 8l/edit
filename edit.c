@@ -321,6 +321,10 @@ eb_read(EBuf *eb, char *path)
 	if (!fp)
 		return 1;
 
+	buf_clr(&eb->b);
+	log_clr(eb->undo);
+	log_clr(eb->redo);
+
 	for (unsigned char buf[11], *beg = buf;;) {
 		int rd, in, ins;
 
