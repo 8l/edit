@@ -62,6 +62,9 @@ ex_look(W *w, Rune *s, unsigned n)
 		eb_yank(w->eb, s0, s1, &lb);
 	}
 
+	if (lb.nr == 0)
+		return 1;
+
 	p = eb_look(w->eb, w->cu+1, lb.r, lb.nr);
 	if (p == -1u)
 		p = eb_look(w->eb, 0, lb.r, lb.nr);
