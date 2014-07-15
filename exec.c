@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdlib.h>
 #include <ctype.h>
 
@@ -13,9 +14,11 @@ struct ecmd {
 };
 
 static ECmd *lookup(EBuf *, unsigned, unsigned *);
+static int get(W *, EBuf *, unsigned);
 static int look(W *, EBuf *, unsigned);
 
 ECmd etab[] = {
+	{ "Get", get },
 	{ "Look", look },
 	{ 0, 0 },
 };
@@ -128,16 +131,40 @@ lookup(EBuf *eb, unsigned p0, unsigned *p1)
 /* builtin commands */
 
 static int
+get(W *w, EBuf *eb, unsigned p0)
+{
+	Rune r;
+	unsigned p1;
+	unsigned char f[1024], *p;
+
+	extend(risarg, &eb->b, &p0, &p1);
+	if (p0 < p1) {
+		p = f;
+		for (; p0 < p1; p0++) {
+			r = buf_get(&eb->b, p0);
+			assert ((unsigned)utf8_rune_len(r) < sizeof f - (p - f));
+			p += utf8_encode_rune(r, p, 8);
+		}
+		*p = 0;
+		eb_read(w->eb, (char *)f);
+	} else
+		eb_read(w->eb, w->eb->path);
+
+	w->cu = 0;
+	return 1;
+}
+
+static int
 look(W *w, EBuf *eb, unsigned p0)
 {
-	YBuf yb = {0,0,0,0};
+	YBuf b = {0,0,0,0};
 	unsigned p1;
 
 	extend(risarg, &eb->b, &p0, &p1);
 	if (p0 < p1) {
-		eb_yank(eb, p0, p1, &yb);
-		ex_look(w, yb.r, yb.nr);
-		free(yb.r);
+		eb_yank(eb, p0, p1, &b);
+		ex_look(w, b.r, b.nr);
+		free(b.r);
 	} else
 		ex_look(w, 0, 0);
 
