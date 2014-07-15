@@ -316,11 +316,12 @@ eb_look(EBuf *eb, unsigned p, Rune *str, int n)
 int
 eb_read(EBuf *eb, char *path)
 {
-	FILE *fp = fopen((eb->path = path), "r");
+	FILE *fp = fopen(path, "r");
 
 	if (!fp)
 		return 1;
 
+	eb->path = path;
 	buf_clr(&eb->b);
 	log_clr(eb->undo);
 	log_clr(eb->redo);
