@@ -871,9 +871,9 @@ is borrowed from Pike's Acme.
 @<Subr...@>=
 static int m_n(int ismotion, Cmd c, Motion *m)
 {
-	(void) c;
-	if (ex_look(curwin, 0, 0))
-		return 1;
+	while (c.count--)
+		if (ex_look(curwin, 0, 0))
+			return 1;
 	m->end = curwin->cu;
 	if (ismotion)
 		@<Extend the motion range...@>;
