@@ -48,7 +48,7 @@ win_init(struct gui *gui)
 
 	/* initialize the tag */
 	tag.win.eb = eb_new();
-	eb_ins_utf8(tag.win.eb, 0, (unsigned char *)"Look \n", 6);
+	eb_ins_utf8(tag.win.eb, 0, TagInit, sizeof TagInit - 1);
 
 	/* the gui module does not give a way to access the screen
 	 * dimension, instead, the first event generated will always

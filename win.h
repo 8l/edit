@@ -8,6 +8,10 @@
 
 typedef struct w W;
 
+#define TagInit \
+	"Look \n" \
+	"Get \n"
+
 enum {
 	FScale = 16384,     /* fixed point scale for fractions */
 	TabWidth = 8,       /* tabulation width */
