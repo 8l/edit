@@ -250,10 +250,21 @@ win_tag_toggle(W *w)
 
 	tag.visible = 1;
 	tag.owner = w;
-	move(&tag.win, w->gr.x, w->gr.w, w->gr.h/3);
+	move(&tag.win, w->gr.x, w->gr.w, w->gr.h/TagRatio);
 	w->dirty = 1;
 
 	return &tag.win;
+}
+
+/* win_text - If the window is a tag window, return its corresponding
+ * text window.  Otherwise, the passed window is returned.
+ */
+W *
+win_text(W *w)
+{
+	if (w == &tag.win)
+		return tag.owner;
+	return w;
 }
 
 /* win_update - Recompute the appearance of the window,

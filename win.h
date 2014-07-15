@@ -16,6 +16,7 @@ enum {
 	HMargin = 12,       /* horizontal margin */
 	VMargin = 2,        /* vertical margin */
 	MaxWins = 6,        /* maximum number of windows */
+	TagRatio = 5,       /* fraction of the screen for the tag */
 };
 
 struct w {
@@ -39,6 +40,7 @@ void win_scroll(W *, int);
 void win_set_cursor(W *, int, int);
 void win_show_cursor(W *, enum CursorLoc);
 W *win_tag_toggle(W *);
+W *win_text(W *);
 void win_update(W *);
 
 #endif /* ndef WIN_H */
