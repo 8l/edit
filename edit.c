@@ -517,6 +517,7 @@ main() {
 				len--;
 			}
 			eb_ins_utf8(eb, p0, (unsigned char *)p+1, len);
+			log_insert(eb->undo, p0, p0+len);
 			break;
 		case '-':
 			p0 = strtol(line+1, &p, 0);
