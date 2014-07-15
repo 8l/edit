@@ -41,7 +41,7 @@ struct log {
  */
 
 static void pushlog(Log *, int);
-static void rebase(Mark *, Log *);
+static void rebase(Mark *, int, unsigned, unsigned);
 static void puteb(EBuf *, FILE *);
 static void putrune(Rune, FILE *);
 
@@ -178,15 +178,17 @@ eb_new()
 void
 eb_del(EBuf *eb, unsigned p0, unsigned p1)
 {
+	rebase(eb->ml, Delete, p0, p1-p0);
 	log_clr(eb->redo);
 	log_delete(eb->undo, &eb->b, p0, p1);
-	for (; p0 < p1; p1--)
-		buf_del(&eb->b, p1-1);
+	while (p0 < p1)
+		buf_del(&eb->b, --p1);
 }
 
 void
 eb_ins(EBuf *eb, unsigned p0, Rune r)
 {
+	rebase(eb->ml, Insert, p0, 1);
 	log_clr(eb->redo);
 	log_insert(eb->undo, p0, p0+1);
 	buf_ins(&eb->b, p0, r);
@@ -212,22 +214,28 @@ void
 eb_commit(EBuf *eb)
 {
 	log_commit(eb->undo);
-	rebase(eb->ml, eb->undo->next);
 }
 
 void
 eb_undo(EBuf *eb, int undo, unsigned *pp)
 {
-	Log *u, *r;
+	Log *u, *r, *l;
+	int ty;
 
 	if (undo)
 		u = eb->undo, r = eb->redo;
 	else
 		u = eb->redo, r = eb->undo;
 
-	if (u->next != 0) {
+	if ((l = u->next) != 0) {
+		for (; l->type != Commit; l=l->next) {
+			if (l->type == Insert)
+				ty = Delete;
+			else
+				ty = Insert;
+			rebase(eb->ml, ty, l->p0, l->np);
+		}
 		log_undo(u, &eb->b, r, pp);
-		rebase(eb->ml, r->next);
 	}
 }
 
@@ -381,31 +389,21 @@ pushlog(Log *log, int type)
 }
 
 static void
-rebase(Mark *ml, Log *log)
+rebase(Mark *m, int type, unsigned p0, unsigned np)
 {
-	Mark *m;
-
-	assert(log);
-
-	if (log->type == Commit)
-		/* we hit the previous commit, rebase is done */
-		return;
-
-	rebase(ml, log->next);
-
-	switch(log->type) {
+	switch(type) {
 	case Insert:
-		for (m=ml; m; m=m->next)
-			if (m->p >= log->p0)
-				m->p += log->np;
+		for (; m; m=m->next)
+			if (m->p >= p0)
+				m->p += np;
 		break;
 	case Delete:
-		for (m=ml; m; m=m->next)
-			if (m->p >= log->p0) {
-				if (m->p < log->p0 + log->np)
-					m->p = log->p0;
+		for (; m; m=m->next)
+			if (m->p >= p0) {
+				if (m->p < p0 + np)
+					m->p = p0;
 				else
-					m->p -= log->np;
+					m->p -= np;
 			}
 		break;
 	default:
