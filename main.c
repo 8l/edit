@@ -45,10 +45,9 @@ main(int ac, char *av[])
 			cmd_parse(e.key);
 			win_update(curwin);
 			if (!scrolling) {
-				if (curwin->cu >= curwin->l[curwin->nl])
-					win_show_cursor(curwin, CBot);
-				if (curwin->cu < curwin->l[0])
-					win_show_cursor(curwin, CTop);
+				if (curwin->cu >= curwin->l[curwin->nl]
+				|| curwin->cu < curwin->l[0])
+					win_show_cursor(curwin, CMid);
 			}
 			scrolling = 0;
 			break;
