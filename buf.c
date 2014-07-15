@@ -25,6 +25,18 @@ buf_init(Buf *b)
 	b->limbo = 0;
 }
 
+void
+buf_clr(Buf *b)
+{
+	Page *p, *q;
+
+	for (p=b->p; p; p=q) {
+		q=p->n;
+		free(p);
+	}
+	buf_init(b);
+}
+
 /* buf_del - Delete rune after position [pos].
  */
 void

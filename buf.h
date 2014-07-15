@@ -28,6 +28,7 @@ struct buf {
 };
 
 void buf_init(Buf *);
+void buf_clr(Buf *);
 void buf_del(Buf *, unsigned);
 void buf_ins(Buf *, unsigned, Rune);
 Rune buf_get(Buf *, unsigned);
