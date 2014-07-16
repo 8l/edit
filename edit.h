@@ -37,7 +37,7 @@ void eb_undo(EBuf *, int, unsigned *);
 void eb_yank(EBuf *, unsigned, unsigned, YBuf *);
 void eb_setmark(EBuf *, Rune, unsigned);
 unsigned eb_getmark(EBuf *, Rune);
-unsigned eb_look(EBuf *, unsigned, Rune *, int);
+unsigned eb_look(EBuf *, unsigned, Rune *, unsigned);
 int eb_read(EBuf *, char *);
 int eb_write(EBuf *);
 
