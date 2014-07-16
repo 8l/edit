@@ -312,30 +312,27 @@ runewidth(Rune r, int x)
 struct frag {
 	Rune b[MaxWidth];
 	int n;
-	int x, y;
+	int x, y, w;
 };
 
 static void
-pushfrag(struct frag *f, Rune r)
+pushfrag(struct frag *f, Rune r, int rw)
 {
 	assert(f->n < MaxWidth);
 	f->b[f->n++] = r;
+	f->w += rw;
 }
 
 static void
 flushfrag(struct frag *f, W *w, int x, int y, int sel)
 {
-	int fw, fh;
-
-	if (sel) {
-		fw = g->textwidth(f->b, f->n);
-		fh = font.height;
-		g->drawrect(&w->gr, f->x, f->y-font.ascent, fw, fh, GPaleBlue);
-	}
+	if (sel)
+		g->drawrect(&w->gr, f->x, f->y-font.ascent, f->w, font.height, GPaleBlue);
 	g->drawtext(&w->gr, f->b, f->n, f->x, f->y, GBlack);
 	f->n = 0;
 	f->x = x;
 	f->y = y;
+	f->w = 0;
 }
 
 static void
@@ -385,10 +382,11 @@ draw(W *w, GColor bg)
 		}
 
 		x += rw;
-		if (r == '\t')
+		if (r == '\t') {
+			pushfrag(&f, ' ', rw);
 			flushfrag(&f, w, x, y, sel);
-		else if (r != '\n')
-			pushfrag(&f, r);
+		} else if (r != '\n')
+			pushfrag(&f, r, rw);
 	}
 
 	flushfrag(&f, w, 0, 0, sel);
