@@ -51,7 +51,7 @@ main(int ac, char *av[])
 			}
 			scrolling = 0;
 			break;
-		case GMouse:
+		case GMouseClick:
 			if (e.mouse.button == GBLeft)
 				win_set_cursor(curwin, e.mouse.x, e.mouse.y);
 			break;

@@ -39,7 +39,8 @@ struct gevent {
 	enum {
 		GResize,
 		GKey,
-		GMouse,
+		GMouseClick,
+		GMouseSelect,
 	} type;
 
 	union {
