@@ -1,6 +1,8 @@
 #include <assert.h>
-#include <stdlib.h>
 #include <ctype.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "unicode.h"
 #include "edit.h"
@@ -44,39 +46,23 @@ ex_run(unsigned p0)
 }
 
 /* ex_look - Look for a string [s] in window [w] and jump
- * to the first match after the cursor position.  If a null pointer
- * is given for [s], the string searched is the current
- * selection.  The caller is responsible to free the [s] buffer.
+ * to the first match after the cursor position.  The caller
+ * is responsible to free the [s] buffer.
  */
 int
 ex_look(W *w, Rune *s, unsigned n)
 {
-	YBuf lb = {s,n,n,0};
-	unsigned s0, s1, p;
+	unsigned p;
 
-	if (!s) {
-		s0 = eb_getmark(w->eb, SelBeg);
-		s1 = eb_getmark(w->eb, SelEnd);
-		if (s0 > s1 || s0 == -1u || s1 == -1u)
-			return 1;
-		eb_yank(w->eb, s0, s1, &lb);
-	}
-
-	if (lb.nr == 0)
-		return 1;
-
-	p = eb_look(w->eb, w->cu+1, lb.r, lb.nr);
+	p = eb_look(w->eb, w->cu+1, s, n);
 	if (p == -1u)
-		p = eb_look(w->eb, 0, lb.r, lb.nr);
-
+		p = eb_look(w->eb, 0, s, n);
 	if (p != -1u) {
 		w->cu = p;
 		eb_setmark(w->eb, SelBeg, p);
-		eb_setmark(w->eb, SelEnd, p+lb.nr);
+		eb_setmark(w->eb, SelEnd, p+n);
 	}
 
-	if (!s)
-		free(lb.r);
 	return p == -1u;
 }
 
@@ -138,23 +124,36 @@ get(W *w, EBuf *eb, unsigned p0)
 {
 	Rune r;
 	unsigned p1;
-	unsigned char f[1024], *p;
+	char a[1024], *f, *p;
+	long ln;
 
+	ln = 1;
 	extend(risarg, &eb->b, &p0, &p1);
+
 	if (p0 < p1) {
-		p = f;
+		p = a;
 		for (; p0 < p1; p0++) {
 			r = buf_get(&eb->b, p0);
-			assert ((unsigned)utf8_rune_len(r) < sizeof f - (p - f));
-			p += utf8_encode_rune(r, p, 8);
+			assert ((unsigned)utf8_rune_len(r) < sizeof a - (p - a));
+			p += utf8_encode_rune(r, (unsigned char *)p, 8);
 		}
 		*p = 0;
-		eb_read(w->eb, (char *)f);
+		if ((p = strchr(a, ':'))) {
+			*p = 0;
+			ln = strtol(p+1, 0, 10);
+			if (ln > INT_MAX || ln < 0)
+				ln = 0;
+		}
+		f = malloc(strlen(a)+1);
+		memcpy(f, a, strlen(a)+1);
 	} else
-		eb_read(w->eb, w->eb->path);
+		f = w->eb->path;
 
-	w->cu = 0;
-	return 1;
+	if (!eb_read(w->eb, f)) {
+		w->cu = buf_setlc(&w->eb->b, ln-1, 0);
+		return 1;
+	} else
+		return 0;
 }
 
 static int
@@ -164,12 +163,11 @@ look(W *w, EBuf *eb, unsigned p0)
 	unsigned p1;
 
 	extend(risarg, &eb->b, &p0, &p1);
-	if (p0 < p1) {
-		eb_yank(eb, p0, p1, &b);
-		ex_look(w, b.r, b.nr);
-		free(b.r);
-	} else
-		ex_look(w, 0, 0);
+	if (p1 == p0)
+		return 0;
 
+	eb_yank(eb, p0, p1, &b);
+	ex_look(w, b.r, b.nr);
+	free(b.r);
 	return 1;
 }
