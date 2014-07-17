@@ -15,7 +15,7 @@ struct ecmd {
 	int (*f)(W *, EBuf *, unsigned);
 };
 
-static ECmd *lookup(EBuf *, unsigned, unsigned *);
+static ECmd *lookup(Buf *, unsigned, unsigned *);
 static int get(W *, EBuf *, unsigned);
 static int look(W *, EBuf *, unsigned);
 
@@ -37,7 +37,7 @@ ex_run(unsigned p0)
 	unsigned p1;
 	ECmd *e;
 
-	e = lookup(curwin->eb, p0, &p1);
+	e = lookup(&curwin->eb->b, p0, &p1);
 	if (e && e->f(win_text(curwin), curwin->eb, p1))
 	if (win_text(curwin) != curwin)
 		curwin = win_tag_toggle(curwin);
@@ -70,47 +70,38 @@ ex_look(W *w, Rune *s, unsigned n)
 /* static functions */
 
 static int
-riscmd(Rune r)
+risspace(Rune r)
 {
-	return risascii(r) && !isblank(r);
+	return risascii(r) && isspace(r);
 }
 
-static int
-risarg(Rune r)
+static unsigned
+skipb(Buf *b, unsigned p, int dir)
 {
-	return risascii(r) && !isspace(r);
-}
-
-static void
-extend(int (*c)(Rune), Buf *b, unsigned *p0, unsigned *p1)
-{
-	while (!c(buf_get(b, *p0))) {
-		if (*p0 > b->limbo)
-			break;
-		(*p0)++;
-	}
-	if (!p1)
-		return;
-	for (*p1 = *p0; c(buf_get(b, *p1)); )
-		(*p1)++;
+	assert(dir == -1 || dir == +1);
+	while (risspace(buf_get(b, p)))
+		p += dir;
+	return p;
 }
 
 static ECmd *
-lookup(EBuf *eb, unsigned p0, unsigned *p1)
+lookup(Buf *b, unsigned p0, unsigned *p1)
 {
 	Rune r;
 	char *s;
 	ECmd *e;
 
-	p0 = buf_bol(&eb->b, p0);
-	extend(riscmd, &eb->b, &p0, 0);
+	p0 = skipb(b, buf_bol(b, p0), +1);
 
 	for (e = etab; (s = e->name); e++) {
 		*p1 = p0;
 		do {
-			if (!*s)
+			r = buf_get(b, *p1);
+			if (!*s && (risspace(r) || r == '\n')) {
+				*p1 = skipb(b, *p1, +1);
 				return e;
-			r = buf_get(&eb->b, (*p1)++);
+			}
+			(*p1)++;
 		} while (risascii(r) && r == (Rune)*s++);
 	}
 	return 0;
@@ -128,7 +119,7 @@ get(W *w, EBuf *eb, unsigned p0)
 	long ln;
 
 	ln = 1;
-	extend(risarg, &eb->b, &p0, &p1);
+	p1 = 1 + skipb(&eb->b, buf_eol(&eb->b, p0) - 1, -1);
 
 	if (p0 < p1) {
 		p = a;
@@ -162,7 +153,7 @@ look(W *w, EBuf *eb, unsigned p0)
 	YBuf b = {0,0,0,0};
 	unsigned p1;
 
-	extend(risarg, &eb->b, &p0, &p1);
+	p1 = 1 + skipb(&eb->b, buf_eol(&eb->b, p0) - 1, -1);
 	if (p1 == p0)
 		return 0;
 
