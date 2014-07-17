@@ -864,20 +864,28 @@ static int m_mark(int, Cmd, Motion *);
 @ The search functionality in this editor differs pretty drastically from
 \.{vi}'s historical behavior.  Search is triggered by the \.n command
 only.  The string searched can be set using the built-in \.{Look}
-command.  When a match is found the selection is set to the matched
-text.  If the search hits limbo, it wraps around.  This aspect of the editor
-is borrowed from Pike's Acme.
+command, otherwise the selection is searched or, as a last resort,
+the annonymous yank buffer.  When a match is found the selection
+is set to the matched text.  If the search hits limbo it wraps around.
 
 @<Subr...@>=
 static int m_n(int ismotion, Cmd c, Motion *m)
 {
+	YBuf b = {0, 0, 0, 0}, *pb = &yannon;
+	int err = 0;
+	unsigned s0, s1;
+
+	s0 = eb_getmark(curwin->eb, SelBeg);
+	s1 = eb_getmark(curwin->eb, SelEnd);
+	if (s0 < s1 && s0 != -1u && s1 != -1u)
+		eb_yank(curwin->eb, s0, s1, pb = &b);
 	while (c.count--)
-		if (ex_look(curwin, 0, 0))
-			return 1;
+		err |= ex_look(curwin, pb->r, pb->nr);
+	free(b.r);
 	m->end = curwin->cu;
 	if (ismotion)
 		@<Extend the motion range...@>;
-	return 0;
+	return err;
 }
 
 @ @<Predecl...@>=
