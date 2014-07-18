@@ -28,39 +28,41 @@ void
 ev_loop()
 {
 	fd_set rfds, wfds;
-	int maxfd, flags;
-	E *e;
+	int i, maxfd, flags;
 
 	while (!exiting) {
 		maxfd = -1;
 		FD_ZERO(&rfds);
 		FD_ZERO(&wfds);
-		for (e=elist; e-elist < ne; e++) {
-			if (e->flags & ERead)
-				FD_SET(e->fd, &rfds);
-			if (e->flags & EWrite)
-				FD_SET(e->fd, &wfds);
-			if (e->fd > maxfd)
-				maxfd = e->fd;
+		for (i=0; i < ne; i++) {
+			if (elist[i].flags & ERead)
+				FD_SET(elist[i].fd, &rfds);
+			if (elist[i].flags & EWrite)
+				FD_SET(elist[i].fd, &wfds);
+			if (elist[i].fd > maxfd)
+				maxfd = elist[i].fd;
 		}
 		if (select(maxfd+1, &rfds, &wfds, 0, 0) == -1) {
 			if (errno == EINTR)
 				continue;
 			die("select error");
 		}
-		for (e=elist; e-elist < ne;) {
+		for (i=0; i < ne;) {
 			flags = 0;
-			if (FD_ISSET(e->fd, &rfds))
+			if (FD_ISSET(elist[i].fd, &rfds))
 				flags |= ERead;
-			if (FD_ISSET(e->fd, &wfds))
+			if (FD_ISSET(elist[i].fd, &wfds))
 				flags |= EWrite;
-			if (flags == 0)
+			if (flags == 0) {
+				i++;
 				continue;
-			if (e->f(flags, e->p)) {
+			}
+			if (elist[i].f(flags, elist[i].p)) {
 				ne--;
-				memmove(e, e+1, (ne - (e-elist)) * sizeof(E));
+				memmove(&elist[i], &elist[i+1], (ne - i) * sizeof(E));
+				continue;
 			} else
-				e++;
+				i++;
 		}
 	}
 }
