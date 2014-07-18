@@ -90,14 +90,15 @@ enum {
 #define CTRL(x) ((x) ^ 64)
 
 struct gui {
-	void (*init)(void);
+	int (*init)(void);
 	void (*fini)(void);
+	void (*sync)(void);
 	void (*getfont)(GFont *fret);
 	void (*drawtext)(GRect *clip, Rune *str, int len,
 	                 int x, int y, GColor color);
 	void (*drawrect)(GRect *clip, int x, int y, int w, int h, GColor c);
 	int (*textwidth)(Rune *str, int len);
-	void (*nextevent)(GEvent *eret);
+	int (*nextevent)(GEvent *eret);
 };
 
 /* Available gui modules */

@@ -30,7 +30,7 @@ XftDraw *xft;
 static int w, h;
 static int dirty;
 
-static void
+static int
 init()
 {
 	XWindowAttributes wa;
@@ -78,6 +78,8 @@ init()
 	/* initialize back buffer and Xft drawing context */
 	pbuf = XCreatePixmap(d, win, Width, Height, depth);
 	xft = XftDrawCreate(d, pbuf, visual, cmap);
+
+	return XConnectionNumber(d);
 }
 
 static void
@@ -161,20 +163,27 @@ textwidth(Rune *str, int len)
 }
 
 static void
+sync()
+{
+	if (dirty) {
+		XCopyArea(d, pbuf, win, gc, 0, 0, w, h, 0, 0);
+		XFlush(d);
+	}
+}
+
+static int
 nextevent(GEvent *gev)
 {
 	XEvent e;
 
-	if (dirty)
-		goto expose;
+	while (XEventsQueued(d, QueuedAfterFlush)) {
 
-	do {
 		XNextEvent(d, &e);
 		switch (e.type) {
 
 		case Expose:
-		expose:
-			XCopyArea(d, pbuf, win, gc, 0, 0, w, h, 0, 0);
+			dirty = 1;
+			sync();
 			continue;
 
 		case ConfigureNotify:
@@ -285,13 +294,15 @@ nextevent(GEvent *gev)
 		default:
 			continue;
 		}
-		return;
-	} while (1);
+		return 1;
+	}
+	return 0;
 }
 
 struct gui gui_x11 = {
 	.init		= init,
 	.fini		= fini,
+	.sync		= sync,
 	.getfont	= getfont,
 	.drawtext	= drawtext,
 	.drawrect	= drawrect,

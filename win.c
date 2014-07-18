@@ -38,10 +38,7 @@ static int tabw;
 void
 win_init(struct gui *gui)
 {
-	g = gui;
-
-	g->init();
-	g->getfont(&font);
+	(g = gui)->getfont(&font);
 
 	/* initialize tab width */
 	tabw = TabWidth * g->textwidth((Rune[]){' '}, 1);

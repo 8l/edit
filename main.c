@@ -7,12 +7,14 @@
 
 #include "cmd.h"
 #include "edit.h"
+#include "evnt.h"
 #include "gui.h"
 #include "win.h"
 
 W *curwin;
 int scrolling;
-int exiting;
+
+static struct gui *g;
 
 void
 die(char *m)
@@ -21,22 +23,14 @@ die(char *m)
 	exit(1);
 }
 
-int
-main(int ac, char *av[])
+static void
+gev(int flag, void *unused)
 {
-	struct gui *g;
-	EBuf *eb;
 	GEvent e;
 
-	g = &gui_x11;
-	win_init(g);
+	assert(flag == ERead && unused == 0);
 
-	eb = eb_new();
-	eb_read(eb, ac > 1 ? av[1] : "dummy.txt");
-	curwin = win_new(eb);
-
-	while (!exiting) {
-		g->nextevent(&e);
+	while (g->nextevent(&e) != 0) {
 		switch (e.type) {
 		case GResize:
 			win_resize_frame(e.resize.width, e.resize.height);
@@ -58,12 +52,33 @@ main(int ac, char *av[])
 		default:
 			break;
 		}
+
 		if (curwin->cu >= curwin->l[curwin->nl])
 			curwin->cu = curwin->l[curwin->nl-1];
 		if (curwin->cu < curwin->l[0])
 			curwin->cu = curwin->l[0];
-		win_redraw_frame();
 	}
+
+	win_redraw_frame();
+	g->sync();
+}
+
+int
+main(int ac, char *av[])
+{
+	int guifd;
+	EBuf *eb;
+
+	g = &gui_x11;
+	guifd = g->init();
+	ev_register((E){guifd, ERead, gev, 0});
+	win_init(g);
+
+	eb = eb_new();
+	eb_read(eb, eb->path = ac > 1 ? av[1] : "dummy.txt");
+	curwin = win_new(eb);
+
+	ev_loop();
 }
 
 #if 0
