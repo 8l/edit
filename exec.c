@@ -1,13 +1,19 @@
+/* acme snake oil */
+
 #include <assert.h>
 #include <ctype.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "unicode.h"
 #include "edit.h"
 #include "win.h"
 #include "exec.h"
+#include "evnt.h"
+
+void die(char *);
 
 typedef struct ecmd ECmd;
 struct ecmd {
@@ -111,40 +117,52 @@ lookup(Buf *b, unsigned p0, unsigned *p1)
 	return e;
 }
 
+static char *
+buftobytes(Buf *b, unsigned p0, unsigned p1)
+{
+	char *s;
+	unsigned char *t;
+	unsigned n, p;
+
+	n = 0;
+	for (p=p0; p<p1; p++)
+		n += utf8_rune_len(buf_get(b, p));
+
+	s = malloc(n+1);
+	assert(s);
+
+	for (t=(unsigned char *)s, p=p0; p<p1; p++)
+		t += utf8_encode_rune(buf_get(b, p), t, 8); /* XXX 8 */
+	*t = 0;
+
+	return s;
+}
+
 
 /* builtin commands */
 
 static int
 get(W *w, EBuf *eb, unsigned p0)
 {
-	Rune r;
+	char *f, *p;
 	unsigned p1;
-	char a[1024], *f, *p;
 	long ln;
 
 	ln = 1;
 	p1 = 1 + skipb(&eb->b, buf_eol(&eb->b, p0) - 1, -1);
 
 	if (p0 < p1) {
-		p = a;
-		for (; p0 < p1; p0++) {
-			r = buf_get(&eb->b, p0);
-			assert ((unsigned)utf8_rune_len(r) < sizeof a - (p - a));
-			p += utf8_encode_rune(r, (unsigned char *)p, 8);
-		}
-		*p = 0;
-		if ((p = strchr(a, ':'))) {
+		f = buftobytes(&eb->b, p0, p1);
+		if ((p = strchr(f, ':'))) {
 			*p = 0;
 			ln = strtol(p+1, 0, 10);
 			if (ln > INT_MAX || ln < 0)
 				ln = 0;
 		}
-		f = malloc(strlen(a)+1);
-		memcpy(f, a, strlen(a)+1);
 	} else
 		f = w->eb->path;
 
-	if (!eb_read(w->eb, f)) {
+	if (eb_read(w->eb, f) == 0) {
 		w->cu = buf_setlc(&w->eb->b, ln-1, 0);
 		return 1;
 	} else
@@ -168,10 +186,14 @@ look(W *w, EBuf *eb, unsigned p0)
 }
 
 struct Run {
-	EBuf *eb;
-	YBuf *o;
-	unsigned p;
-	unsigned no;
+	EBuf *eb; /* target buffer for the command output */
+	unsigned p; /* offset in the target buffer */
+	char *o; /* 0 terminated input to the command, or 0 if none */
+
+	/* everyting below must be 0 initialized */
+	unsigned snt;
+	unsigned rcv;
+	char in[8]; /* XXX 8 */
 };
 
 static int
@@ -179,21 +201,115 @@ runev(int flag, void *data)
 {
 	struct Run *r;
 
+	/* XXX r->eb can be invalid */
 	r = data;
+
+	puts("pop!");
 
 	/* commit changes (if any) here */
 	/* set selection and commit changes if text was added */
-	return 0;
+	free(r);
+	return 1;
 }
 
 static int
 run(W *w, EBuf *eb, unsigned p0)
 {
-	/* clear (and possibly delete) selection, get the "insertion" position and set a mark for it in the edit buffer (Acme does not do this, it just stores an offset)
+	unsigned p1, eol, s0, s1;
+	char *argv[4], *cmd, ctyp;
+	int pin[2], pout[2], perr[2];
+	struct Run *r;
 
-	what happens when eb is deleted/changed during the command execution?
-		refcount ebs and make eb_free free the data and have eb contain simply the refcount
-		when a dummy eb is detected in the callback, just abort the IO operation
-	*/
+	/* ***
+	clear (and possibly delete) selection,
+	get the "insertion" position and set a mark for it in the
+	edit buffer (Acme does not do this, it just stores an offset)
+
+	what happens when eb is deleted/changed
+	during the command execution?
+	+	refcount ebs and make eb_free free the
+			data and have eb contain simply the refcount
+	+	when a dummy eb is detected in the callback,
+			just abort the IO operation
+	*** */
+
+	eol = buf_eol(&eb->b, p0);
+	p1 = 1 + skipb(&eb->b, eol-1, -1);
+	if (p1 == p0)
+		return 0;
+	cmd = buftobytes(&eb->b, p0, p1);
+	ctyp = cmd[0];
+	if (strchr("<>|", ctyp))
+		cmd++;
+	else
+		ctyp = 0;
+	if (ctyp != 0) {
+		s0 = eb_getmark(w->eb, SelBeg);
+		s1 = eb_getmark(w->eb, SelEnd);
+		if (s1 <= s0 || s0 == -1u || s1 == -1u)
+			s0 = s1 = w->cu;
+	}
+	pipe(pin);
+	pipe(pout);
+	pipe(perr);
+	if (!fork()) {
+		close(pin[1]);
+		close(pout[0]);
+		close(perr[0]);
+		argv[0] = "sh";
+		argv[1] = "-c";
+		argv[2] = cmd;
+		argv[3] = 0;
+		/* XXX close open file descriptors */
+		dup2(pin[0], 0);
+		dup2(pout[1], 1);
+		dup2(perr[1], 2);
+		execv(argv[0], argv);
+		die("cannot exec");
+	}
+	close(pin[0]);
+	close(pout[1]);
+	close(perr[1]);
+	r = calloc(1, sizeof *r);
+	assert(r);
+	switch (ctyp) {
+	case '>':
+		r->eb = eb;
+		r->p = eol+1;
+		r->o = buftobytes(&w->eb->b, s0, s1);
+		break;
+	case '<':
+		r->eb = w->eb;
+		r->p = s0;
+		r->o = 0;
+		eb_del(w->eb, s0, s1);
+		break;
+	case '|':
+		r->eb = w->eb;
+		r->p = s0;
+		r->o = buftobytes(&w->eb->b, s0, s1);
+		eb_del(w->eb, s0, s1);
+		break;
+	case 0:
+		r->eb = eb;
+		r->p = eol+1;
+		r->o = 0;
+		break;
+	default:
+		abort();
+	}
+	if (ctyp != 0)
+	if (s0 != s1) {
+		eb_setmark(w->eb, SelBeg, -1u); /* clear selection */
+		eb_setmark(w->eb, SelEnd, -1u);
+	}
+	eb_commit(w->eb);
+	if (r->o)
+		ev_register((E){pin[1], EWrite, runev, r});
+	else
+		close(pin[1]);
+	ev_register((E){pout[0], ERead, runev, r});
+	close(perr[0]); /* XXX errors ignored... */
+
 	return 0;
 }
