@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <sys/select.h>
 
@@ -47,14 +48,19 @@ ev_loop()
 				continue;
 			die("select error");
 		}
-		for (e=elist; e-elist < ne; e++) {
+		for (e=elist; e-elist < ne;) {
 			flags = 0;
 			if (FD_ISSET(e->fd, &rfds))
 				flags |= ERead;
 			if (FD_ISSET(e->fd, &wfds))
 				flags |= EWrite;
-			if (flags)
-				e->f(flags, e->p);
+			if (flags == 0)
+				continue;
+			if (e->f(flags, e->p)) {
+				ne--;
+				memmove(e, e+1, (ne - (e-elist)) * sizeof(E));
+			} else
+				e++;
 		}
 	}
 }

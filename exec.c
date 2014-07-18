@@ -16,13 +16,15 @@ struct ecmd {
 };
 
 static ECmd *lookup(Buf *, unsigned, unsigned *);
+static unsigned skipb(Buf *, unsigned, int);
 static int get(W *, EBuf *, unsigned);
 static int look(W *, EBuf *, unsigned);
+static int run(W *, EBuf *, unsigned);
 
 ECmd etab[] = {
 	{ "Get", get },
 	{ "Look", look },
-	{ 0, 0 },
+	{ 0, run },
 };
 
 
@@ -42,7 +44,7 @@ ex_run(unsigned p0)
 	if (win_text(curwin) != curwin)
 		curwin = win_tag_toggle(curwin);
 
-	return e != 0;
+	return 0;
 }
 
 /* ex_look - Look for a string [s] in window [w] and jump
@@ -104,7 +106,9 @@ lookup(Buf *b, unsigned p0, unsigned *p1)
 			(*p1)++;
 		} while (risascii(r) && r == (Rune)*s++);
 	}
-	return 0;
+
+	*p1 = p0;
+	return e;
 }
 
 
@@ -161,4 +165,35 @@ look(W *w, EBuf *eb, unsigned p0)
 	ex_look(w, b.r, b.nr);
 	free(b.r);
 	return 1;
+}
+
+struct Run {
+	EBuf *eb;
+	YBuf *o;
+	unsigned p;
+	unsigned no;
+};
+
+static int
+runev(int flag, void *data)
+{
+	struct Run *r;
+
+	r = data;
+
+	/* commit changes (if any) here */
+	/* set selection and commit changes if text was added */
+	return 0;
+}
+
+static int
+run(W *w, EBuf *eb, unsigned p0)
+{
+	/* clear (and possibly delete) selection, get the "insertion" position and set a mark for it in the edit buffer (Acme does not do this, it just stores an offset)
+
+	what happens when eb is deleted/changed during the command execution?
+		refcount ebs and make eb_free free the data and have eb contain simply the refcount
+		when a dummy eb is detected in the callback, just abort the IO operation
+	*/
+	return 0;
 }

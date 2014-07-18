@@ -23,7 +23,7 @@ die(char *m)
 	exit(1);
 }
 
-static void
+static int
 gev(int flag, void *unused)
 {
 	GEvent e;
@@ -61,6 +61,7 @@ gev(int flag, void *unused)
 
 	win_redraw_frame();
 	g->sync();
+	return 0;
 }
 
 int

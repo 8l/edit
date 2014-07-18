@@ -11,7 +11,7 @@ enum {
 struct e {
 	int fd;
 	int flags;
-	void (*f)(int, void *);
+	int (*f)(int, void *);
 	void *p;
 };
 
