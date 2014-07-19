@@ -409,7 +409,8 @@ puteb(EBuf *eb, FILE *fp)
 	unsigned munchb = 0, munche = 0, nl = 0;
 	Rune r;
 
-	while (munche < eb->b.limbo) switch (state) {
+	while (munche < eb->b.limbo)
+	switch (state) {
 
 	case Munching:
 		r = buf_get(&eb->b, munche);
