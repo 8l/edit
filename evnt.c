@@ -57,7 +57,7 @@ ev_loop()
 				i++;
 				continue;
 			}
-			if (elist[i].f(flags, elist[i].p)) {
+			if (elist[i].f(elist[i].fd, flags, elist[i].p)) {
 				ne--;
 				memmove(&elist[i], &elist[i+1], (ne - i) * sizeof(E));
 				continue;

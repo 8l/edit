@@ -24,10 +24,11 @@ die(char *m)
 }
 
 static int
-gev(int flag, void *unused)
+gev(int fd, int flag, void *unused)
 {
 	GEvent e;
 
+	(void) fd;
 	assert(flag == ERead && unused == 0);
 
 	while (g->nextevent(&e) != 0) {

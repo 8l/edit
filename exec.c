@@ -197,7 +197,7 @@ struct Run {
 };
 
 static int
-runev(int flag, void *data)
+runev(int fd, int flag, void *data)
 {
 	struct Run *r;
 
