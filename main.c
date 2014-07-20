@@ -61,7 +61,6 @@ gev(int fd, int flag, void *unused)
 	}
 
 	win_redraw_frame();
-	g->sync();
 	return 0;
 }
 

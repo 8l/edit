@@ -137,6 +137,7 @@ win_redraw_frame()
 		}
 	if (tag.visible && tag.win.dirty)
 		draw(&tag.win, GPaleGreen);
+	g->sync();
 }
 
 /* win_scroll - Scroll the window by [n] lines.
