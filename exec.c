@@ -49,7 +49,6 @@ ex_run(unsigned p0)
 	if (e && e->f(win_text(curwin), curwin->eb, p1))
 	if (win_text(curwin) != curwin)
 		curwin = win_tag_toggle(curwin);
-
 	return 0;
 }
 
@@ -70,7 +69,6 @@ ex_look(W *w, Rune *s, unsigned n)
 		eb_setmark(w->eb, SelBeg, p);
 		eb_setmark(w->eb, SelEnd, p+n);
 	}
-
 	return p == -1u;
 }
 
@@ -78,16 +76,16 @@ ex_look(W *w, Rune *s, unsigned n)
 /* static functions */
 
 static int
-risspace(Rune r)
+risblank(Rune r)
 {
-	return risascii(r) && isspace(r);
+	return risascii(r) && isblank(r);
 }
 
 static unsigned
 skipb(Buf *b, unsigned p, int dir)
 {
 	assert(dir == -1 || dir == +1);
-	while (risspace(buf_get(b, p)))
+	while (risblank(buf_get(b, p)))
 		p += dir;
 	return p;
 }
@@ -100,19 +98,17 @@ lookup(Buf *b, unsigned p0, unsigned *p1)
 	ECmd *e;
 
 	p0 = skipb(b, buf_bol(b, p0), +1);
-
 	for (e = etab; (s = e->name); e++) {
 		*p1 = p0;
 		do {
 			r = buf_get(b, *p1);
-			if (!*s && (risspace(r) || r == '\n')) {
+			if (!*s && (risblank(r) || r == '\n')) {
 				*p1 = skipb(b, *p1, +1);
 				return e;
 			}
 			(*p1)++;
 		} while (risascii(r) && r == (Rune)*s++);
 	}
-
 	*p1 = p0;
 	return e;
 }
@@ -127,14 +123,11 @@ buftobytes(Buf *b, unsigned p0, unsigned p1)
 	n = 0;
 	for (p=p0; p<p1; p++)
 		n += utf8_rune_len(buf_get(b, p));
-
 	s = malloc(n+1);
 	assert(s);
-
 	for (t=(unsigned char *)s, p=p0; p<p1; p++)
 		t += utf8_encode_rune(buf_get(b, p), t, 8); /* XXX 8 */
 	*t = 0;
-
 	return s;
 }
 
@@ -150,7 +143,6 @@ get(W *w, EBuf *eb, unsigned p0)
 
 	ln = 1;
 	p1 = 1 + skipb(&eb->b, buf_eol(&eb->b, p0) - 1, -1);
-
 	if (p0 < p1) {
 		f = buftobytes(&eb->b, p0, p1);
 		if ((p = strchr(f, ':'))) {
@@ -175,40 +167,68 @@ look(W *w, EBuf *eb, unsigned p0)
 	YBuf b = {0,0,0,0};
 	unsigned p1;
 
-	p1 = 1 + skipb(&eb->b, buf_eol(&eb->b, p0) - 1, -1);
-	if (p1 == p0)
+	if (buf_get(&eb->b, p0) == '\n')
 		return 0;
-
+	p1 = 1 + skipb(&eb->b, buf_eol(&eb->b, p0) - 1, -1);
 	eb_yank(eb, p0, p1, &b);
 	ex_look(w, b.r, b.nr);
 	free(b.r);
 	return 1;
 }
 
+typedef struct Run Run;
 struct Run {
-	EBuf *eb; /* target buffer for the command output */
-	unsigned p; /* offset in the target buffer */
-	char *o; /* 0 terminated input to the command, or 0 if none */
-
-	/* everyting below must be 0 initialized */
-	unsigned snt;
-	unsigned rcv;
-	char in[8]; /* XXX 8 */
+	EBuf *eb;	/* 0 if no more to read */
+	unsigned p;	/* write offset in eb */
+	char *ob;	/* nul terminated input to the command, 0 if none */
+	unsigned snt;	/* number of bytes sent */
+	unsigned nin;	/* numbers of bytes in the in array */
+	char in[8];	/* input buffer for partial utf8 sequences XXX 8 */
 };
 
 static int
 runev(int fd, int flag, void *data)
 {
-	struct Run *r;
+	Run *rn;
+	int n, dec;
+	unsigned char buf[2048], *p;
+	unsigned p0;
+	Rune r;
 
-	/* XXX r->eb can be invalid */
-	r = data;
-
-	puts("pop!");
-
-	/* commit changes (if any) here */
-	/* set selection and commit changes if text was added */
-	free(r);
+	rn = data; /* XXX rn->eb can be invalid */
+	if (flag & ERead) {
+		assert(rn->eb);
+		memcpy(buf, rn->in, rn->nin);
+		n = read(fd, &buf[rn->nin], sizeof buf - rn->nin);
+		if (n <= 0) {
+			close(fd);
+			rn->eb = 0;
+			goto Reset;
+		}
+		p = buf;
+		p0 = rn->p;
+		while ((dec = utf8_decode_rune(&r, p, n))) {
+			buf_ins(&rn->eb->b, rn->p++, r);
+			p += dec;
+			n -= dec;
+		}
+		assert((unsigned)n <= sizeof rn->in);
+		rn->nin = n;
+		memcpy(rn->in, p, n);
+		eb_setmark(rn->eb, SelBeg, p0);
+		eb_setmark(rn->eb, SelEnd, rn->p);
+		win_redraw_frame();
+	}
+	if (flag & EWrite) {
+		close(fd);
+		free(rn->ob);
+		rn->ob = 0;
+		goto Reset;
+	}
+	return 0;
+Reset:
+	if (rn->eb == 0 && rn->ob == 0)
+		free(rn);
 	return 1;
 }
 
@@ -218,7 +238,7 @@ run(W *w, EBuf *eb, unsigned p0)
 	unsigned p1, eol, s0, s1;
 	char *argv[4], *cmd, ctyp;
 	int pin[2], pout[2], perr[2];
-	struct Run *r;
+	Run *r;
 
 	/* ***
 	clear (and possibly delete) selection,
@@ -256,11 +276,11 @@ run(W *w, EBuf *eb, unsigned p0)
 		close(pin[1]);
 		close(pout[0]);
 		close(perr[0]);
-		argv[0] = "sh";
+		argv[0] = "/bin/sh";
 		argv[1] = "-c";
 		argv[2] = cmd;
 		argv[3] = 0;
-		/* XXX close open file descriptors */
+		/* XXX do not leak file descriptors */
 		dup2(pin[0], 0);
 		dup2(pout[1], 1);
 		dup2(perr[1], 2);
@@ -276,24 +296,24 @@ run(W *w, EBuf *eb, unsigned p0)
 	case '>':
 		r->eb = eb;
 		r->p = eol+1;
-		r->o = buftobytes(&w->eb->b, s0, s1);
+		r->ob = buftobytes(&w->eb->b, s0, s1);
 		break;
 	case '<':
 		r->eb = w->eb;
 		r->p = s0;
-		r->o = 0;
+		r->ob = 0;
 		eb_del(w->eb, s0, s1);
 		break;
 	case '|':
 		r->eb = w->eb;
 		r->p = s0;
-		r->o = buftobytes(&w->eb->b, s0, s1);
+		r->ob = buftobytes(&w->eb->b, s0, s1);
 		eb_del(w->eb, s0, s1);
 		break;
 	case 0:
 		r->eb = eb;
 		r->p = eol+1;
-		r->o = 0;
+		r->ob = 0;
 		break;
 	default:
 		abort();
@@ -304,7 +324,7 @@ run(W *w, EBuf *eb, unsigned p0)
 		eb_setmark(w->eb, SelEnd, -1u);
 	}
 	eb_commit(w->eb);
-	if (r->o)
+	if (r->ob)
 		ev_register((E){pin[1], EWrite, runev, r});
 	else
 		close(pin[1]);
