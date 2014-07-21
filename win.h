@@ -26,7 +26,7 @@ enum {
 struct w {
 	unsigned l[MaxHeight]; /* line start offsets */
 	int nl;                /* current number of lines */
-	int dirty;             /* dirty bit */
+	unsigned rev;          /* on-screen revision or 0 if dirty */
 	unsigned cu;           /* cursor offset */
 	int hrig;              /* horizontal rigidity */
 	EBuf *eb;              /* underlying buffer object */

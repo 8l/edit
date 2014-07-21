@@ -16,6 +16,7 @@ struct lineinfo {
 	unsigned sl[RingSize]; /* beginning of line offsets */
 };
 
+static int dirty(W *);
 static void draw(W *w, GColor bg);
 static void move(W *pw, int x, int w, int h);
 static void lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li);
@@ -129,13 +130,13 @@ win_redraw_frame()
 	W *w;
 
 	for (w=wins; w-wins<MaxWins; w++)
-		if (w->eb && w->dirty) {
+		if (w->eb && dirty(w)) {
 			draw(w, GPaleYellow);
-			w->dirty = 0;
+			w->rev = eb_revision(w->eb);
 			if (tag.owner == w)
-				tag.win.dirty = 1;
+				tag.win.rev = 0;
 		}
-	if (tag.visible && tag.win.dirty)
+	if (tag.visible && dirty(&tag.win))
 		draw(&tag.win, GPaleGreen);
 	g->sync();
 }
@@ -210,7 +211,7 @@ win_set_cursor(W *w, int x, int y)
 		if (lx + HMargin >= x)
 			break;
 	}
-	w->dirty = 1;
+	w->rev = 0;
 	w->cu = p;
 }
 
@@ -242,7 +243,7 @@ win_tag_toggle(W *w)
 {
 	if (tag.visible) {
 		tag.visible = 0;
-		tag.owner->dirty = 1;
+		tag.owner->rev = 0;
 		if (w == &tag.win)
 			return tag.owner;
 	}
@@ -250,7 +251,7 @@ win_tag_toggle(W *w)
 	tag.visible = 1;
 	tag.owner = w;
 	move(&tag.win, w->gr.x, w->gr.w, w->gr.h/TagRatio);
-	w->dirty = 1;
+	w->rev = 0;
 
 	return &tag.win;
 }
@@ -284,10 +285,18 @@ win_update(W *w)
 		for (; top<li.len; top++, l++)
 			w->l[l] = li.sl[(li.beg + top) % RingSize];
 	}
-	w->dirty = 1;
+	w->rev = 0;
 }
 
 /* static functions */
+
+static int
+dirty(W *w)
+{
+	if (w->rev && w->rev != eb_revision(w->eb))
+		win_update(w);
+	return !w->rev;
+}
 
 /* runewidth - returns the width of a given
  * rune, if called on '\n', it returns 0.
