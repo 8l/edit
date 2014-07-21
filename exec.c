@@ -109,7 +109,7 @@ lookup(Buf *b, unsigned p0, unsigned *p1)
 				return e;
 			}
 			(*p1)++;
-		} while (risascii(r) && r == (Rune)*s++);
+		} while (r == (Rune)*s++);
 	}
 	*p1 = p0;
 	return e;
