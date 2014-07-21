@@ -26,7 +26,7 @@ struct log {
 		Delete = '-',
 		Commit = 'c',
 	} type;
-	unsigned p0;	/* location of the change */
+	unsigned p0;	/* location of the change/revision (for commits) */
 	unsigned np;	/* size of the change */
 	Log *next;
 	Rune rbuf[];	/* rune buffer (data stored in reverse order) */
@@ -77,10 +77,21 @@ log_delete(Log *l, Buf *b, unsigned p0, unsigned p1)
 	l->p0 = p0;
 }
 
-void
-log_commit(Log *l)
+unsigned
+log_revision(Log *l)
 {
+	while (l->type != Commit)
+		l = l->next;
+	return l->p0;
+}
+
+void
+log_commit(Log *l, unsigned rev)
+{
+	if (!rev)
+		rev = log_revision(l) + 1;
 	pushlog(l, Commit);
+	l->p0 = rev;
 }
 
 void
@@ -129,7 +140,7 @@ log_undo(Log *l, Buf *b, Log *redo, unsigned *pp)
 	top->next = l->next;
 	free(l);
 	if (redo)
-		log_commit(redo);
+		log_commit(redo, top->p0);
 }
 
 Log *
@@ -140,7 +151,8 @@ log_new()
 	l = malloc(sizeof *l + MaxBuf*sizeof(Rune));
 	assert(l);
 	l->type = Commit;
-	l->p0 = l->np = 0;
+	l->p0 = 1; /* initial revision */
+	l->np = 0;
 	l->next = 0;
 	return l;
 }
@@ -214,7 +226,13 @@ void
 eb_commit(EBuf *eb)
 {
 	if (eb->undo->type != Commit)
-		log_commit(eb->undo);
+		log_commit(eb->undo, 0);
+}
+
+unsigned
+eb_revision(EBuf *eb)
+{
+	return log_revision(eb->undo);
 }
 
 void
@@ -523,7 +541,7 @@ main() {
 			break;
 		case '!':
 			if (eb->undo->type != Commit)
-				log_commit(eb->undo);
+				log_commit(eb->undo, 0);
 			eb_undo(eb, 1, 0);
 			break;
 		case '?':
@@ -536,7 +554,7 @@ main() {
 			while (buf_get(&eb->b, i-1) != '\n');
 			break;
 		case 'c':
-			log_commit(eb->undo);
+			log_commit(eb->undo, 0);
 			break;
 		case '#':
 			break;

@@ -30,6 +30,7 @@ struct ebuf {
 
 EBuf *eb_new(void);
 void eb_del(EBuf *, unsigned, unsigned);
+unsigned eb_revision(EBuf *);
 void eb_ins(EBuf *, unsigned, Rune);
 int eb_ins_utf8(EBuf *, unsigned, unsigned char *, int);
 void eb_commit(EBuf *);
