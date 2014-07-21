@@ -79,6 +79,7 @@ main(int ac, char *av[])
 	eb_read(eb, eb->path = ac > 1 ? av[1] : "dummy.txt");
 	curwin = win_new(eb);
 
+	gev(0, ERead, 0);
 	ev_loop();
 }
 
