@@ -61,6 +61,8 @@ ex_look(W *w, Rune *s, unsigned n)
 {
 	unsigned p;
 
+	if (n == 0)
+		return 1;
 	p = eb_look(w->eb, w->cu+1, s, n);
 	if (p == -1u)
 		p = eb_look(w->eb, 0, s, n);
