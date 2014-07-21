@@ -210,7 +210,7 @@ runev(int fd, int flag, void *data)
 		p = buf;
 		p0 = rn->p;
 		while ((dec = utf8_decode_rune(&r, p, n))) {
-			buf_ins(&rn->eb->b, rn->p++, r);
+			eb_ins(rn->eb, rn->p++, r);
 			p += dec;
 			n -= dec;
 		}
@@ -219,6 +219,7 @@ runev(int fd, int flag, void *data)
 		memcpy(rn->in, p, n);
 		eb_setmark(rn->eb, SelBeg, p0);
 		eb_setmark(rn->eb, SelEnd, rn->p);
+		eb_commit(rn->eb);
 		win_redraw_frame();
 	}
 	if (flag & EWrite) {

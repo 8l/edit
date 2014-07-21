@@ -213,7 +213,8 @@ eb_ins_utf8(EBuf *eb, unsigned p0, unsigned char *data, int len)
 void
 eb_commit(EBuf *eb)
 {
-	log_commit(eb->undo);
+	if (eb->undo->type != Commit)
+		log_commit(eb->undo);
 }
 
 void
@@ -522,7 +523,7 @@ main() {
 			break;
 		case '!':
 			if (eb->undo->type != Commit)
-				eb_commit(eb);
+				log_commit(eb->undo);
 			eb_undo(eb, 1, 0);
 			break;
 		case '?':
@@ -535,7 +536,7 @@ main() {
 			while (buf_get(&eb->b, i-1) != '\n');
 			break;
 		case 'c':
-			eb_commit(eb);
+			log_commit(eb->undo);
 			break;
 		case '#':
 			break;
