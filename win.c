@@ -132,7 +132,6 @@ win_redraw_frame()
 	for (w=wins; w-wins<MaxWins; w++)
 		if (w->eb && dirty(w)) {
 			draw(w, GPaleYellow);
-			w->rev = eb_revision(w->eb);
 			if (tag.owner == w)
 				tag.win.rev = 0;
 		}
@@ -399,6 +398,7 @@ draw(W *w, GColor bg)
 	flushfrag(&f, w, 0, 0, sel);
 	if (cw != 0)
 		g->drawrect(&w->gr, cx, cy, cw, font.height, GXBlack);
+	w->rev = eb_revision(w->eb);
 }
 
 /* move - Resize and recompute appearance
