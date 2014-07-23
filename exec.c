@@ -116,7 +116,7 @@ lookup(Buf *b, unsigned p0, unsigned *p1)
 }
 
 static char *
-buftobytes(Buf *b, unsigned p0, unsigned p1)
+buftobytes(Buf *b, unsigned p0, unsigned p1, unsigned *sz)
 {
 	char *s;
 	unsigned char *t;
@@ -125,6 +125,8 @@ buftobytes(Buf *b, unsigned p0, unsigned p1)
 	n = 0;
 	for (p=p0; p<p1; p++)
 		n += utf8_rune_len(buf_get(b, p));
+	if (sz)
+		*sz = n;
 	s = malloc(n+1);
 	assert(s);
 	for (t=(unsigned char *)s, p=p0; p<p1; p++)
@@ -146,7 +148,7 @@ get(W *w, EBuf *eb, unsigned p0)
 	ln = 1;
 	p1 = 1 + skipb(&eb->b, buf_eol(&eb->b, p0) - 1, -1);
 	if (p0 < p1) {
-		f = buftobytes(&eb->b, p0, p1);
+		f = buftobytes(&eb->b, p0, p1, 0);
 		if ((p = strchr(f, ':'))) {
 			*p = 0;
 			ln = strtol(p+1, 0, 10);
@@ -178,14 +180,15 @@ look(W *w, EBuf *eb, unsigned p0)
 	return 1;
 }
 
-typedef struct Run Run;
-struct Run {
-	EBuf *eb;	/* 0 if no more to read */
-	unsigned p;	/* write offset in eb */
-	char *ob;	/* nul terminated input to the command, 0 if none */
-	unsigned snt;	/* number of bytes sent */
-	unsigned nin;	/* numbers of bytes in the in array */
-	char in[8];	/* input buffer for partial utf8 sequences XXX 8 */
+typedef struct run Run;
+struct run {
+	EBuf *eb; /* 0 if no more to read */
+	unsigned p; /* write offset in eb */
+	char *ob; /* input to the command, 0 if none */
+	unsigned no; /* number of bytes in the ob array */
+	unsigned snt; /* number of bytes sent */
+	char in[8]; /* input buffer for partial utf8 sequences XXX 8 */
+	unsigned nin; /* numbers of bytes in the in array */
 };
 
 static int
@@ -223,10 +226,15 @@ runev(int fd, int flag, void *data)
 		win_redraw_frame();
 	}
 	if (flag & EWrite) {
-		close(fd);
-		free(rn->ob);
-		rn->ob = 0;
-		goto Reset;
+		assert(rn->ob);
+		n = write(fd, &rn->ob[rn->snt], rn->no - rn->snt);
+		rn->snt += n;
+		if (n < 0 || rn->snt == rn->no) {
+			close(fd);
+			free(rn->ob);
+			rn->ob = 0;
+			goto Reset;
+		}
 	}
 	return 0;
 Reset:
@@ -260,7 +268,7 @@ run(W *w, EBuf *eb, unsigned p0)
 	p1 = 1 + skipb(&eb->b, eol-1, -1);
 	if (p1 == p0)
 		return 0;
-	cmd = buftobytes(&eb->b, p0, p1);
+	cmd = buftobytes(&eb->b, p0, p1, 0);
 	ctyp = cmd[0];
 	if (strchr("<>|", ctyp))
 		cmd++;
@@ -299,7 +307,7 @@ run(W *w, EBuf *eb, unsigned p0)
 	case '>':
 		r->eb = eb;
 		r->p = eol+1;
-		r->ob = buftobytes(&w->eb->b, s0, s1);
+		r->ob = buftobytes(&w->eb->b, s0, s1, &r->no);
 		break;
 	case '<':
 		r->eb = w->eb;
@@ -310,7 +318,7 @@ run(W *w, EBuf *eb, unsigned p0)
 	case '|':
 		r->eb = w->eb;
 		r->p = s0;
-		r->ob = buftobytes(&w->eb->b, s0, s1);
+		r->ob = buftobytes(&w->eb->b, s0, s1, &r->no);
 		eb_del(w->eb, s0, s1);
 		break;
 	case 0:
