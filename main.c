@@ -20,7 +20,7 @@ void
 die(char *m)
 {
 	fprintf(stderr, "dying, %s\n", m);
-	exit(1);
+	abort();
 }
 
 static int
