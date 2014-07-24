@@ -248,7 +248,7 @@ run(W *w, EBuf *eb, unsigned p0)
 {
 	unsigned p1, eol, s0, s1;
 	char *argv[4], *cmd, ctyp;
-	int pin[2], pout[2], perr[2];
+	int pin[2], pout[2];
 	Run *r;
 
 	/* ***
@@ -282,11 +282,9 @@ run(W *w, EBuf *eb, unsigned p0)
 	}
 	pipe(pin);
 	pipe(pout);
-	pipe(perr);
 	if (!fork()) {
 		close(pin[1]);
 		close(pout[0]);
-		close(perr[0]);
 		argv[0] = "/bin/sh";
 		argv[1] = "-c";
 		argv[2] = cmd;
@@ -294,13 +292,12 @@ run(W *w, EBuf *eb, unsigned p0)
 		/* XXX do not leak file descriptors */
 		dup2(pin[0], 0);
 		dup2(pout[1], 1);
-		dup2(perr[1], 2);
+		dup2(pout[1], 2);
 		execv(argv[0], argv);
 		die("cannot exec");
 	}
 	close(pin[0]);
 	close(pout[1]);
-	close(perr[1]);
 	r = calloc(1, sizeof *r);
 	assert(r);
 	switch (ctyp) {
@@ -340,7 +337,6 @@ run(W *w, EBuf *eb, unsigned p0)
 	else
 		close(pin[1]);
 	ev_register((E){pout[0], ERead, runev, r});
-	close(perr[0]); /* XXX errors ignored... */
 
 	return 0;
 }
