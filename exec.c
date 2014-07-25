@@ -2,9 +2,14 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "unicode.h"
@@ -24,11 +29,14 @@ struct ecmd {
 static ECmd *lookup(Buf *, unsigned, unsigned *);
 static unsigned skipb(Buf *, unsigned, int);
 static int get(W *, EBuf *, unsigned);
+static int put(W *, EBuf *, unsigned);
 static int look(W *, EBuf *, unsigned);
 static int run(W *, EBuf *, unsigned);
 
-ECmd etab[] = {
+static char *errstr;
+static ECmd etab[] = {
 	{ "Get", get },
+	{ "Put", put },
 	{ "Look", look },
 	{ 0, run },
 };
@@ -70,12 +78,105 @@ ex_look(W *w, Rune *s, unsigned n)
 		w->cu = p;
 		eb_setmark(w->eb, SelBeg, p);
 		eb_setmark(w->eb, SelEnd, p+n);
+		return 0;
+	} else {
+		errstr = "no match";
+		return 1;
 	}
-	return p == -1u;
+}
+
+/* ex_get - Load the buffer [eb] from the file [file].  See ex_put
+ * for more information.
+ */
+int
+ex_get(EBuf *eb, char *file)
+{
+	int fd;
+	struct stat st;
+	char *file1;
+
+	if (!file)
+		file = eb->path;
+	if (!file) {
+		errstr = "no file to read from";
+		return 1;
+	}
+	fd = open(file, O_RDONLY);
+	if (fd == -1) {
+		errstr = "cannot open file";
+		return 1;
+	}
+	file1 = malloc(strlen(file)+1);
+	assert(file1);
+	strcpy(file1, file);
+	free(eb->path);
+	eb->path = 0;
+	eb_clr(eb, fd);
+	close(fd);
+	stat(file1, &st);
+	eb->path = file1;
+	eb->mtime = st.st_mtime;
+	return 0;
+}
+
+/* ex_put - Save the buffer [eb] in the file [file].  If [file] is
+ * null the buffer path is used. One is returned if an error occurs
+ * and zero is returned otherwise.  The caller is responsible to
+ * free the [file] buffer.
+ */
+int
+ex_put(EBuf *eb, char *file)
+{
+	int fd;
+	struct stat st;
+
+	if (file) {
+		if (stat(file, &st) != -1) {
+			errstr = "file exists";
+			return 1;
+		}
+	} else {
+		file = eb->path;
+		if (!file) {
+			errstr = "no file to write to";
+			return 1;
+		}
+		if (stat(file, &st) != -1)
+		if (st.st_mtime > eb->mtime) {
+			errstr = "file changed on disk";
+			return 1;
+		}
+	}
+	fd = open(file, O_TRUNC|O_WRONLY|O_CREAT);
+	if (fd == -1) {
+		errstr = "cannot open file";
+		return 1;
+	}
+	eb_write(eb, fd);
+	close(fd);
+	if (eb->path == 0) {
+		eb->path = malloc(strlen(file)+1);
+		assert(eb->path);
+		strcpy(eb->path, file);
+	}
+	if (strcmp(eb->path, file) == 0) {
+		stat(file, &st);
+		eb->mtime = st.st_mtime;
+	}
+	return 0;
 }
 
 
 /* static functions */
+
+static void
+err(EBuf *eb, unsigned p0, char *e)
+{
+	p0 = buf_eol(&eb->b, p0) + 1;
+	while (*e)
+		eb_ins(eb, p0++, *e++);
+	eb_ins(eb, p0, '\n');
+}
 
 static int
 risblank(Rune r)
@@ -143,8 +244,10 @@ get(W *w, EBuf *eb, unsigned p0)
 {
 	char *f, *p;
 	unsigned p1;
+	int e;
 	long ln;
 
+	f = 0;
 	ln = 1;
 	p1 = 1 + skipb(&eb->b, buf_eol(&eb->b, p0) - 1, -1);
 	if (p0 < p1) {
@@ -155,28 +258,54 @@ get(W *w, EBuf *eb, unsigned p0)
 			if (ln > INT_MAX || ln < 0)
 				ln = 0;
 		}
-	} else
-		f = w->eb->path;
-
-	if (eb_read(w->eb, f) == 0) {
-		w->cu = buf_setlc(&w->eb->b, ln-1, 0);
-		return 1;
-	} else
+	}
+	e = ex_get(w->eb, f);
+	free(f);
+	if (e) {
+		err(eb, p0, errstr);
 		return 0;
+	}
+	w->cu = buf_setlc(&w->eb->b, ln-1, 0);
+	return 1;
+}
+
+static int
+put(W *w, EBuf *eb, unsigned p0)
+{
+	char *f;
+	int e;
+	unsigned p1;
+
+	f = 0;
+	p1 = 1 + skipb(&eb->b, buf_eol(&eb->b, p0) - 1, -1);
+	if (p0 < p1)
+		f = buftobytes(&eb->b, p0, p1, 0);
+	e = ex_put(w->eb, f);
+	free(f);
+	if (e) {
+		err(eb, p0, errstr);
+		return 0;
+	}
+	return 1;
 }
 
 static int
 look(W *w, EBuf *eb, unsigned p0)
 {
 	YBuf b = {0,0,0,0};
+	int e;
 	unsigned p1;
 
 	if (buf_get(&eb->b, p0) == '\n')
 		return 0;
 	p1 = 1 + skipb(&eb->b, buf_eol(&eb->b, p0) - 1, -1);
 	eb_yank(eb, p0, p1, &b);
-	ex_look(w, b.r, b.nr);
+	e = ex_look(w, b.r, b.nr);
 	free(b.r);
+	if (e) {
+		err(eb, p0, errstr);
+		return 0;
+	}
 	return 1;
 }
 

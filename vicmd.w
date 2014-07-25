@@ -1056,7 +1056,7 @@ module.
 static int a_write(char buf, Cmd c, Cmd mc)
 {
 	(void)buf;@+ (void)c;@+ (void)mc;
-	return eb_write(curwin->eb);
+	return ex_put(curwin->eb, 0);
 }
 
 @ @<Subr...@>=

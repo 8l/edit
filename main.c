@@ -76,7 +76,8 @@ main(int ac, char *av[])
 	win_init(g);
 
 	eb = eb_new();
-	eb_read(eb, eb->path = ac > 1 ? av[1] : "dummy.txt");
+	if (ac > 1)
+		ex_get(eb, av[1]);
 	curwin = win_new(eb);
 
 	gev(0, ERead, 0);

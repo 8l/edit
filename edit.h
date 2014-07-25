@@ -1,6 +1,8 @@
 #ifndef EDIT_H
 #define EDIT_H
 
+#include <time.h>
+
 #include "unicode.h"
 #include "buf.h"
 
@@ -26,10 +28,12 @@ struct ebuf {
 	Log *redo;
 	Mark *ml;	/* buffer marks */
 	char *path;	/* file path */
+	time_t mtime;   /* last mtime when written/read */
 };
 
 EBuf *eb_new(void);
 void eb_del(EBuf *, unsigned, unsigned);
+void eb_clr(EBuf *, int);
 unsigned eb_revision(EBuf *);
 void eb_ins(EBuf *, unsigned, Rune);
 int eb_ins_utf8(EBuf *, unsigned, unsigned char *, int);
@@ -39,7 +43,6 @@ void eb_yank(EBuf *, unsigned, unsigned, YBuf *);
 void eb_setmark(EBuf *, Rune, unsigned);
 unsigned eb_getmark(EBuf *, Rune);
 unsigned eb_look(EBuf *, unsigned, Rune *, unsigned);
-int eb_read(EBuf *, char *);
-int eb_write(EBuf *);
+void eb_write(EBuf *, int);
 
 #endif /* ndef EDIT_H */

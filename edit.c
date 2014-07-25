@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "unicode.h"
 #include "buf.h"
@@ -42,8 +43,9 @@ struct log {
 
 static void pushlog(Log *, int);
 static void rebase(Mark *, int, unsigned, unsigned);
-static void puteb(EBuf *, FILE *);
-static void putrune(Rune, FILE *);
+static void geteb(EBuf *, int);
+static void puteb(EBuf *, int);
+static void putrune(Rune, int);
 
 void
 log_insert(Log *l, unsigned p0, unsigned p1)
@@ -185,6 +187,28 @@ eb_new()
 	eb->ml = 0;
 	eb->path = 0;
 	return eb;
+}
+
+/* eb_clr - Reset the buffer contents and marks and read
+ * the new contents from the file descriptor [fd] if it is
+ * different from -1.
+ */
+void
+eb_clr(EBuf *eb, int fd)
+{
+	Mark *m;
+
+	buf_clr(&eb->b);
+	log_clr(eb->undo);
+	log_clr(eb->redo);
+	while (eb->ml) {
+		m = eb->ml->next;
+		free(eb->ml);
+		eb->ml = m;
+	}
+	if (fd != -1)
+		geteb(eb, fd);
+	assert(eb->path == 0);
 }
 
 void
@@ -331,45 +355,10 @@ eb_look(EBuf *eb, unsigned p, Rune *str, unsigned n)
 	return -1u;
 }
 
-int
-eb_read(EBuf *eb, char *path)
+void
+eb_write(EBuf *eb, int fd)
 {
-	FILE *fp = fopen(path, "r");
-
-	if (!fp)
-		return 1;
-
-	eb->path = path;
-	buf_clr(&eb->b);
-	log_clr(eb->undo);
-	log_clr(eb->redo);
-
-	for (unsigned char buf[11], *beg = buf;;) {
-		int rd, in, ins;
-
-		rd = fread(beg, 1, sizeof buf - (beg-buf), fp);
-		in = rd + (beg-buf);
-		ins = eb_ins_utf8(eb, eb->b.limbo, buf, in);
-
-		assert(rd != 0 || in == ins);
-		if (rd == 0)
-			break;
-		memmove(buf, buf+ins, in-ins);
-		beg = buf + (in-ins);
-	}
-	return 0;
-}
-
-int
-eb_write(EBuf *eb)
-{
-	FILE *fp = fopen(eb->path, "w");
-
-	if (!fp)
-		return -1;
-	puteb(eb, fp);
-	fclose(fp);
-	return 0;
+	puteb(eb, fd);
 }
 
 
@@ -421,8 +410,28 @@ rebase(Mark *m, int type, unsigned p0, unsigned np)
 	}
 }
 
+void
+geteb(EBuf *eb, int fd)
+{
+	unsigned char buf[11], *beg;
+	int rd, in, ins;
+
+	beg = buf;
+	for (;;) {
+		rd = read(fd, beg, sizeof buf - (beg-buf));
+		in = rd + (beg-buf);
+		ins = eb_ins_utf8(eb, eb->b.limbo, buf, in);
+
+		assert(rd != 0 || in == ins); /* XXX */
+		if (rd == 0)
+			break;
+		memmove(buf, buf+ins, in-ins);
+		beg = buf + (in-ins);
+	}
+}
+
 static void
-puteb(EBuf *eb, FILE *fp)
+puteb(EBuf *eb, int fd)
 {
 	enum { Munching, Spitting } state = Munching;
 	unsigned munchb = 0, munche = 0, nl = 0;
@@ -444,7 +453,7 @@ puteb(EBuf *eb, FILE *fp)
 				continue;
 			assert(nl == 0 || r == '\n');
 			nl -= (r == '\n');
-			putrune(r, fp);
+			putrune(r, fd);
 		}
 		assert(munchb == munche);
 		state = Spitting;
@@ -458,24 +467,24 @@ puteb(EBuf *eb, FILE *fp)
 			assert(nl == 0);
 			continue;
 		}
-		putrune(r, fp);
+		putrune(r, fd);
 		munchb++;
 		continue;
 
 	}
 
-	putrune('\n', fp); // always terminate file with a newline
+	putrune('\n', fd); // always terminate file with a newline
 }
 
 static void
-putrune(Rune r, FILE *fp)
+putrune(Rune r, int fd)
 {
-	unsigned char uni[16];
+	unsigned char uni[8]; /* XXX 8 */
 	int i, n;
 
-	n = utf8_encode_rune(r, uni, 16);
+	n = utf8_encode_rune(r, uni, 8);
 	for (i=0; i<n; i++)
-		putc(uni[i], fp);
+		write(fd, &uni[i], 1);
 }
 
 
@@ -495,7 +504,7 @@ dumplog(Log *l)
 			printf("%02d - (p0=%u np=%u)\n", n, l->p0, l->np);
 			printf("\t'");
 			for (i=l->np-1; i>=0; --i)
-				putrune(l->rbuf[i], stdout);
+				putrune(l->rbuf[i], STDOUT_FILENO);
 			printf("'\n");
 			break;
 		case Commit:
@@ -550,7 +559,7 @@ main() {
 		case 'p':
 			i = 0;
 			do
-				putrune(buf_get(&eb->b, i++), stdout);
+				putrune(buf_get(&eb->b, i++), STDOUT_FILENO);
 			while (buf_get(&eb->b, i-1) != '\n');
 			break;
 		case 'c':
