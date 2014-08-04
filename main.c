@@ -8,6 +8,7 @@
 #include "cmd.h"
 #include "edit.h"
 #include "evnt.h"
+#include "exec.h"
 #include "gui.h"
 #include "win.h"
 
