@@ -391,7 +391,9 @@ draw(W *w, GColor bg)
 		if (r == '\t') {
 			pushfrag(&f, ' ', rw);
 			flushfrag(&f, w, x, y, sel);
-		} else if (r != '\n')
+		} else if (r == '\n')
+			f.w = w->gr.w - HMargin;
+		else
 			pushfrag(&f, r, rw);
 	}
 
