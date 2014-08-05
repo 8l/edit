@@ -27,6 +27,7 @@ die(char *m)
 static int
 gev(int fd, int flag, void *unused)
 {
+	static int issel;
 	GEvent e;
 
 	(void) fd;
@@ -51,9 +52,19 @@ gev(int fd, int flag, void *unused)
 			if (e.mouse.button == GBLeft)
 				win_set_cursor(curwin, e.mouse.x, e.mouse.y);
 			break;
+		case GMouseSelect:
+			win_set_cursor(curwin, e.mouse.x, e.mouse.y);
+			if (issel)
+				eb_setmark(curwin->eb, SelEnd, curwin->cu);
+			else
+				eb_setmark(curwin->eb, SelBeg, curwin->cu);
+			issel = 1;
+			goto Select;
 		default:
 			break;
 		}
+		issel = 0;
+	Select:
 
 		if (curwin->cu >= curwin->l[curwin->nl])
 			curwin->cu = curwin->l[curwin->nl-1];
