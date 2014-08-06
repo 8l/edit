@@ -462,10 +462,10 @@ run(W *w, EBuf *eb, unsigned p0)
 	}
 	eb_commit(w->eb);
 	if (r->ob)
-		ev_register((E){pin[1], EWrite, runev, r});
+		ev_register((Evnt){pin[1], EWrite, runev, r});
 	else
 		close(pin[1]);
-	ev_register((E){pout[0], ERead, runev, r});
+	ev_register((Evnt){pout[0], ERead, runev, r});
 
 	return 0;
 }

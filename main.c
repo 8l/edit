@@ -84,7 +84,7 @@ main(int ac, char *av[])
 
 	g = &gui_x11;
 	guifd = g->init();
-	ev_register((E){guifd, ERead, gev, 0});
+	ev_register((Evnt){guifd, ERead, gev, 0});
 	win_init(g);
 
 	eb = eb_new();
