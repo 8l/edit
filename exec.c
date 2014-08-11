@@ -115,7 +115,8 @@ ex_get(EBuf *eb, char *file)
 	close(fd);
 	stat(file1, &st);
 	eb->path = file1;
-	eb->mtime = st.st_mtime;
+	eb->ftime = st.st_mtime;
+	eb->frev = eb_revision(eb);
 	return 0;
 }
 
@@ -142,7 +143,7 @@ ex_put(EBuf *eb, char *file)
 			return 1;
 		}
 		if (stat(file, &st) != -1)
-		if (st.st_mtime > eb->mtime) {
+		if (st.st_mtime > eb->ftime) {
 			errstr = "file changed on disk";
 			return 1;
 		}
@@ -161,7 +162,8 @@ ex_put(EBuf *eb, char *file)
 	}
 	if (strcmp(eb->path, file) == 0) {
 		stat(file, &st);
-		eb->mtime = st.st_mtime;
+		eb->ftime = st.st_mtime;
+		eb->frev = eb_revision(eb);
 	}
 	return 0;
 }

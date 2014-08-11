@@ -28,7 +28,8 @@ struct ebuf {
 	Log *redo;
 	Mark *ml;	/* buffer marks */
 	char *path;	/* file path */
-	time_t mtime;   /* last mtime when written/read */
+	time_t ftime;   /* last mtime when written/read */
+	unsigned frev;  /* last revision written */
 };
 
 EBuf *eb_new(void);
