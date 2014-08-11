@@ -90,8 +90,10 @@ log_revision(Log *l)
 void
 log_commit(Log *l, unsigned rev)
 {
+	static unsigned grev = 1;
+
 	if (!rev)
-		rev = log_revision(l) + 1;
+		rev = ++grev;
 	pushlog(l, Commit);
 	l->p0 = rev;
 }
@@ -139,10 +141,12 @@ log_undo(Log *l, Buf *b, Log *redo, unsigned *pp)
 		l = n;
 	}
 
+	p0 = top->p0;
+	top->p0 = l->p0;
 	top->next = l->next;
 	free(l);
 	if (redo)
-		log_commit(redo, top->p0);
+		log_commit(redo, p0);
 }
 
 Log *
