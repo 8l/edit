@@ -400,6 +400,9 @@ draw(W *w, GColor bg)
 	flushfrag(&f, w, 0, 0, sel);
 	if (cw != 0)
 		g->drawrect(&w->gr, cx, cy, cw, font.height, GXBlack);
+	if (w != &tag.win && w->eb->path)
+	if (w->eb->frev != eb_revision(w->eb))
+		g->drawrect(&w->gr, 2, VMargin, HMargin-4, HMargin-4, GGray);
 	w->rev = eb_revision(w->eb);
 }
 
