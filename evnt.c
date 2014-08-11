@@ -10,13 +10,18 @@
 void die(char *);
 int exiting;
 
+#define tgt(a, b) \
+	((a)->tv_sec == (b)->tv_sec ? \
+	(a)->tv_usec > (b)->tv_usec : \
+	(a)->tv_sec > (b)->tv_sec)
+
 static void popalrm(void);
 
 static Alrm *ah[MaxAlrms + 1];
 static int na;
 static Evnt *elist;
 static int ne;
-static time_t curtime;
+static struct timeval curtime;
 
 int
 ev_alarm(Alrm a)
@@ -31,7 +36,7 @@ ev_alarm(Alrm a)
 	*a1 = a;
 	i = ++na;
 	ah[i] = a1;
-	while ((j = i / 2) && ah[j]->t > ah[i]->t) {
+	while ((j = i / 2) && tgt(&ah[j]->t, &ah[i]->t)) {
 		t = ah[j];
 		ah[j] = ah[i];
 		ah[i] = t;
@@ -49,11 +54,11 @@ ev_register(Evnt e)
 	ne++;
 }
 
-time_t
-ev_time()
+void
+ev_time(struct timeval *t)
 {
-	assert(curtime);
-	return curtime;
+	assert(curtime.tv_sec);
+	*t = curtime;
 }
 
 void
@@ -64,7 +69,6 @@ ev_loop()
 	fd_set rfds, wfds;
 	int i, maxfd, flags;
 
-	tv.tv_usec = 0;
 	while (!exiting) {
 		maxfd = -1;
 		FD_ZERO(&rfds);
@@ -79,22 +83,28 @@ ev_loop()
 		}
 		if (na) {
 			gettimeofday(&tv, 0);
-			if (ah[1]->t <= tv.tv_sec)
-				tv.tv_sec = 0;
-			else
-				tv.tv_sec = ah[1]->t - tv.tv_sec;
+			if (!tgt(&ah[1]->t, &tv))
+				tv = (struct timeval){0, 0};
+			else {
+				tv.tv_sec = ah[1]->t.tv_sec - tv.tv_sec;
+				tv.tv_usec = ah[1]->t.tv_usec - tv.tv_usec;
+				if (tv.tv_usec < 0) {
+					tv.tv_sec--;
+					tv.tv_usec += 1000000;
+				}
+			}
 		} else
-			tv.tv_sec = 10000;
+			tv = (struct timeval){10000, 0};
 		if (select(maxfd+1, &rfds, &wfds, 0, &tv) == -1) {
 			if (errno == EINTR)
 				continue;
 			die("select error");
 		}
-		gettimeofday(&tv, 0);
-		curtime = tv.tv_sec;
-		while (na && (a = ah[1])->t <= curtime) {
+		gettimeofday(&curtime, 0);
+		while (na && !tgt(&ah[1]->t, &curtime)) {
+			a = ah[1];
 			popalrm();
-			a->f(a->t, a->p);
+			a->f(&a->t, a->p);
 			free(a);
 		}
 		for (i=0; i < ne;) {
@@ -129,9 +139,9 @@ popalrm()
 	i = 1;
 	ah[i] = ah[na--];
 	while ((j = 2 * i) <= na) {
-		if (ah[j+1]->t < ah[j]->t)
+		if (tgt(&ah[j]->t, &ah[j+1]->t))
 			j++;
-		if (ah[i]->t <= ah[j]->t)
+		if (!tgt(&ah[i]->t, &ah[j]->t))
 			return;
 		t = ah[j];
 		ah[j] = ah[i];

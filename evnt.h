@@ -4,21 +4,22 @@
 #include <sys/time.h>
 
 enum {
-	ERead = 1,
-	EWrite = 2,
-
-	MaxAlrms = 31,
+	MaxAlrms = 15, /* max number of concurrent alarms */
 };
 
 typedef struct alrm Alrm;
 typedef struct evnt Evnt;
 
 struct alrm {
-	time_t t;
-	void (*f)(time_t, void *);
+	struct timeval t;
+	void (*f)(struct timeval *, void *);
 	void *p;
 };
 
+enum {
+	ERead = 1,
+	EWrite = 2,
+};
 
 struct evnt {
 	int fd;
