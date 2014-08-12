@@ -95,15 +95,15 @@ ex_get(EBuf *eb, char *file)
 	struct stat st;
 	char *file1;
 
-	if (eb->path && strcmp(eb->path, file) != 0)
-	if (eb->frev != eb_revision(eb)) {
-		errstr = "file not written";
-		return 1;
-	}
 	if (!file)
 		file = eb->path;
 	if (!file) {
 		errstr = "no file to read from";
+		return 1;
+	}
+	if (eb->path && strcmp(eb->path, file) != 0)
+	if (eb->frev != eb_revision(eb)) {
+		errstr = "file not written";
 		return 1;
 	}
 	fd = open(file, O_RDONLY);
