@@ -10,7 +10,9 @@ typedef struct w W;
 
 #define TagInit \
 	"Look \n" \
-	"Get \n"
+	"Get \n" \
+	"\n" \
+	"|fmt\n"
 
 enum {
 	FScale = 16384,     /* fixed point scale for fractions */
