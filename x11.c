@@ -10,7 +10,7 @@
 
 void die(char *);
 
-#define FONTNAME "DejaVu Sans:pixelsize=14"
+#define FONTNAME "Source Code Pro:pixelsize=12"
 
 enum {
 	Width = 640,
@@ -168,6 +168,7 @@ sync()
 	if (dirty) {
 		XCopyArea(d, pbuf, win, gc, 0, 0, w, h, 0, 0);
 		XFlush(d);
+		dirty = 0;
 	}
 }
 
