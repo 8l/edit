@@ -22,7 +22,7 @@ enum {
 	HMargin = 12,       /* horizontal margin */
 	VMargin = 2,        /* vertical margin */
 	MaxWins = 6,        /* maximum number of windows */
-	TagRatio = 5,       /* fraction of the screen for the tag */
+	TagRatio = 3,       /* fraction of the screen for the tag */
 };
 
 struct w {

@@ -249,7 +249,7 @@ win_tag_toggle(W *w)
 
 	tag.visible = 1;
 	tag.owner = w;
-	move(&tag.win, w->gr.x, w->gr.w, w->gr.h/TagRatio);
+	move(&tag.win, w->gr.w - w->gr.w/TagRatio, w->gr.w/TagRatio, w->gr.h);
 	w->rev = 0;
 
 	return &tag.win;
