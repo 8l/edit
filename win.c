@@ -204,7 +204,7 @@ win_set_cursor(W *w, int x, int y)
 		return;
 
 	p = w->l[y];
-	lx = 0;
+	lx = w->gr.x;
 	for (; p < w ->l[y+1] - 1; p++) {
 		lx += runewidth(buf_get(&w->eb->b, p), lx);
 		if (lx + HMargin >= x)
