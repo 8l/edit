@@ -82,8 +82,8 @@ log_delete(Log *l, Buf *b, unsigned p0, unsigned p1)
 unsigned
 log_revision(Log *l)
 {
-	while (l->type != Commit)
-		l = l->next;
+	if (l->type != Commit)
+		return 0;
 	return l->p0;
 }
 
