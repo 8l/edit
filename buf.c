@@ -178,12 +178,10 @@ del(Buf *b, unsigned pos)
 	long int shft;
 	int fixcol;
 
-	q = 0;
 	off = pos;
 	p = page(b, &off);
 
 	if (off == p->len) {
-		q = p;
 		p = p->n;
 		off = 0;
 		if (p == 0)
@@ -199,22 +197,20 @@ del(Buf *b, unsigned pos)
 	p->hbeg--;
 	p->len--;
 
-	if (p->len == 0 && (p != b->p || p->n)) {
-		if (!q) {
-			for (q=b->p; q && q->n!=p; q=q->n)
-				;
-		}
-
+	if (p->len == 0 && (p->p || p->n)) {
 		old = p;
+		q = p->p;
 		if (q)
 			p = q->n = p->n;
 		else
 			p = b->p = p->n;
+		if (p)
+			p->p = q;
 		free(old);
 
 		if (b->last == old)
 			b->last = p; /* should do it... */
-		fixcol = q != 0 && q->n != 0; // bug
+		fixcol = q != 0 && q->n != 0; // XXX bug
 	}
 	else if (p->n) {
 		q = p;
@@ -272,7 +268,10 @@ ins(Buf *b, unsigned pos, Rune r)
 		enum { l = PageLen/2 };
 
 		q = newpage();
+		q->p = p;
 		q->n = p->n;
+		if (q->n)
+			q->n->p = q;
 		p->n = q;
 
 		move(q->buf, &p->buf[l], PageLen-l);
@@ -328,6 +327,7 @@ newpage()
 	p->len = 0;
 	p->nl = 0;
 	p->col = 0;
+	p->p = 0;
 	p->n = 0;
 	return p;
 }
@@ -345,27 +345,24 @@ page(Buf *b, unsigned *ppos)
 
 	pos = *ppos;
 	if (b->last) {
-		if (pos < b->lastbeg) {
-			off = 0;
-			p = b->p;
-		}
-		else if (pos > b->lastbeg + b->last->len) {
-			off = b->lastbeg;
-			p = b->last;
-		}
-		else {
-			*ppos -= b->lastbeg;
-			return b->last;
-		}
+		off = b->lastbeg;
+		p = b->last;
 	} else {
 		off = 0;
 		p = b->p;
 	}
 
-	for (; p->n; p=p->n) {
-		if (pos >= off && pos <= off + p->len)
+	for (;;) {
+		assert(p->p || off == 0);
+		assert(!p->p || p->p->n == p);
+		if (pos < off && p->p) {
+			p = p->p;
+			off -= p->len;
+		} else if (pos > off + p->len && p->n) {
+			off += p->len;
+			p = p->n;
+		} else
 			break;
-		off += p->len;
 	}
 
 	b->lastbeg = off;

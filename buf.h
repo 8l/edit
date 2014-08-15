@@ -17,6 +17,7 @@ struct page {
 	int col;
 	Rune *hbeg;
 	Rune buf[PageLen];
+	Page *p;
 	Page *n;
 };
 
