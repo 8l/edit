@@ -318,13 +318,14 @@ look(W *w, EBuf *eb, unsigned p0)
 
 typedef struct run Run;
 struct run {
-	EBuf *eb; /* 0 if no more to read */
-	unsigned p; /* write offset in eb */
-	char *ob; /* input to the command, 0 if none */
-	unsigned no; /* number of bytes in the ob array */
-	unsigned snt; /* number of bytes sent */
-	char in[8]; /* input buffer for partial utf8 sequences XXX 8 */
-	unsigned nin; /* numbers of bytes in the in array */
+	EBuf *eb;      /* 0 if no more to read */
+	unsigned p;    /* insertion point in eb */
+	unsigned ins;  /* numbers of runes written in eb */
+	char *ob;      /* input to the command, 0 if none */
+	unsigned no;   /* number of bytes in the ob array */
+	unsigned snt;  /* number of bytes sent */
+	char in[8];    /* input buffer for partial utf8 sequences XXX 8 */
+	unsigned nin;  /* numbers of bytes in the in array */
 };
 
 static int
@@ -333,7 +334,6 @@ runev(int fd, int flag, void *data)
 	Run *rn;
 	int n, dec;
 	unsigned char buf[2048], *p;
-	unsigned p0;
 	Rune r;
 
 	rn = data; /* XXX rn->eb can be invalid */
@@ -347,17 +347,16 @@ runev(int fd, int flag, void *data)
 			goto Reset;
 		}
 		p = buf;
-		p0 = rn->p;
 		while ((dec = utf8_decode_rune(&r, p, n))) {
-			eb_ins(rn->eb, rn->p++, r);
+			eb_ins(rn->eb, rn->p + rn->ins++, r);
 			p += dec;
 			n -= dec;
 		}
 		assert((unsigned)n <= sizeof rn->in);
 		rn->nin = n;
 		memcpy(rn->in, p, n);
-		eb_setmark(rn->eb, SelBeg, p0);
-		eb_setmark(rn->eb, SelEnd, rn->p);
+		eb_setmark(rn->eb, SelBeg, rn->p);
+		eb_setmark(rn->eb, SelEnd, rn->p + rn->ins);
 		eb_commit(rn->eb);
 		win_redraw_frame();
 	}
