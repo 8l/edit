@@ -106,6 +106,7 @@ struct gui {
 	int (*nextevent)(GEvent *eret);
 	int hmargin;
 	int vmargin;
+	int border;
 };
 
 /* Available gui modules */

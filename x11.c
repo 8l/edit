@@ -15,6 +15,7 @@ void die(char *);
 enum {
 	HMargin = 16,
 	VMargin = 2,
+	Border = 2,
 	Width = 640,
 	Height = 480,
 };
@@ -326,4 +327,5 @@ struct gui gui_x11 = {
 	.nextevent	= nextevent,
 	.hmargin        = HMargin,
 	.vmargin        = VMargin,
+	.border         = Border,
 };

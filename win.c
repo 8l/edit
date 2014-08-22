@@ -18,11 +18,12 @@ struct lineinfo {
 
 static int dirty(W *);
 static void draw(W *w, GColor bg);
-static void move(W *pw, int x, int w, int h);
+static void move(W *pw, int x, int y, int w, int h);
 static void lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li);
 static int runewidth(Rune r, int x);
 
 static W wins[MaxWins];
+static W *screen[MaxWins + 1];
 static struct {
 	W win;
 	W *owner;
@@ -32,6 +33,7 @@ static struct gui *g;
 static GFont font;
 static int fwidth, fheight;
 static int tabw;
+
 
 /* win_init - Initialize the module using [gui] as a
  * graphical backed.
@@ -64,6 +66,7 @@ W *
 win_new(EBuf *eb)
 {
 	W *w;
+	int i, x, size;
 
 	assert(eb);
 
@@ -74,10 +77,21 @@ win_new(EBuf *eb)
 			break;
 	}
 
+	for (i=0, x=0; screen[i] && screen[i+1]; i++)
+		x += screen[i]->gr.w;
+	if (!screen[i])
+		size = fwidth;
+	else {
+		size = screen[i]->gr.w - screen[i]->gr.w / 2;
+		x += (screen[i]->gr.w /= 2) + g->border;
+		win_update(screen[i]);
+		i++;
+	}
+
 	w->eb = eb;
-	w->gr = (GRect){0, 0, fwidth, fheight};
-	w->hrig = 500;
-	win_update(w);
+	move(w, x, 0, size, fheight);
+	screen[i] = w;
+	screen[i+1] = 0;
 
 	return w;
 }
@@ -92,34 +106,31 @@ win_delete(W *w)
 
 	memset(w, 0, sizeof(W));
 	w->eb = 0;
+	// FIXME, create an invariant such that win_new can be simplified
 }
 
 /* win_resize_frame - Called when the whole frame
  * is resized.
  */
 void
-win_resize_frame(int w, int h)
+win_resize_frame(int w1, int h1)
 {
-	int x, ww, rig;
-	W *pw;
+	int i, x, w;
 
-	assert(w!=0 && h!=0);
-	fwidth = w;
-	fheight = h;
-
-	for (rig=0, pw=wins; pw-wins<MaxWins; pw++)
-		rig += pw->hrig;
-
-	for (x=0, pw=wins; pw-wins<MaxWins; pw++)
-		if (pw->eb) {
-			ww = (fwidth * pw->hrig) / rig;
-			move(pw, x, ww, fheight);
-			if (tag.visible && tag.owner == pw) {
-				win_tag_toggle(pw);
-				win_tag_toggle(pw);
-			}
-			x += ww;
+	assert(w1!=0 && h1!=0);
+	for (i=0, x=0; screen[i]; i++) {
+		w = (screen[i]->gr.w * w1) / fwidth;
+		if (!screen[i+1])
+			w = w1 - x;
+		move(screen[i], x, 0, w, h1);
+		x += w + g->border;
+		if (tag.visible && tag.owner == screen[i]) {
+			win_tag_toggle(screen[i]);
+			win_tag_toggle(screen[i]);
 		}
+	}
+	fwidth = w1;
+	fheight = h1;
 }
 
 /* win_redraw_frame - Redraw the whole frame.
@@ -127,16 +138,26 @@ win_resize_frame(int w, int h)
 void
 win_redraw_frame()
 {
+	GRect b;
 	W *w;
+	int i;
 
-	for (w=wins; w-wins<MaxWins; w++)
-		if (w->eb && dirty(w)) {
+	for (i=0; (w = screen[i]); i++)
+		if (dirty(w)) {
+			if (screen[i+1]) {
+				b = (GRect){ w->gr.x + w->gr.w, 0, g->border, fheight };
+				g->drawrect(&b, 0, 0,  g->border, b.h, GGray);
+			}
 			draw(w, GPaleYellow);
 			if (tag.owner == w)
 				tag.win.rev = 0;
 		}
-	if (tag.visible && dirty(&tag.win))
+	if (tag.visible && dirty(&tag.win)) {
+		b = tag.win.gr;
+		b.y -= g->border;
+		g->drawrect(&b, 0, 0, b.w, g->border, GGray);
 		draw(&tag.win, GPaleGreen);
+	}
 	g->sync();
 }
 
@@ -148,6 +169,7 @@ win_scroll(W *w, int n)
 {
 	struct lineinfo li;
 	unsigned start, bol;
+	int top;
 
 	if (n == 0)
 		return;
@@ -156,8 +178,6 @@ win_scroll(W *w, int n)
 
 	if (n < 0) {
 		do {
-			int top;
-
 			if (start == 0)
 				/* already at the top */
 				break;
@@ -173,8 +193,6 @@ win_scroll(W *w, int n)
 		} while (n<0);
 	} else {
 		do {
-			int top;
-
 			lineinfo(w, start, -1, &li);
 			assert(li.len > 0);
 			top = 0;
@@ -249,7 +267,7 @@ win_tag_toggle(W *w)
 
 	tag.visible = 1;
 	tag.owner = w;
-	move(&tag.win, w->gr.w - w->gr.w/TagRatio, w->gr.w/TagRatio, w->gr.h);
+	move(&tag.win, w->gr.x, w->gr.h - w->gr.h/TagRatio, w->gr.w, w->gr.h/TagRatio);
 	w->rev = 0;
 
 	return &tag.win;
@@ -408,13 +426,15 @@ draw(W *w, GColor bg)
  * of a window, dimensions must be non-zero.
  */
 void
-move(W *pw, int x, int w, int h)
+move(W *pw, int x, int y, int w, int h)
 {
 	assert(w!=0 && h!=0);
 
-	pw->gr = (GRect){x, 0, w, h};
+	pw->gr = (GRect){x, y, w, h};
 	pw->nl = (h - g->vmargin) / font.height;
-	assert(pw->nl > 0 && pw->nl < MaxHeight);
+	if (pw->nl == 0)
+		pw->nl = 1;
+	assert(pw->nl < MaxHeight);
 
 	win_update(pw);
 }
@@ -500,6 +520,8 @@ lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li)
 /* test */
 
 #include <stdlib.h>
+#include <sys/select.h>
+#include <sys/time.h>
 
 void die(char *m) { exit(1); }
 
@@ -518,6 +540,7 @@ int main()
 	"et voila!\n\n";
 
 	eb = eb_new();
+	gui_x11.init();
 	win_init(&gui_x11);
 	for (int i = 0; i < N; i++)
 		ws[i] = win_new(eb);
@@ -529,8 +552,10 @@ int main()
 		eb_ins_utf8(tag.win.eb, 0, (unsigned char *)"TAG WINDOW\n", 10);
 
 	do {
+		select(0, 0, 0, 0, &(struct timeval){ 0, 30000 });
 		win_redraw_frame();
-		g->nextevent(&e);
+		if (!g->nextevent(&e))
+			continue;
 		if (e.type == GResize)
 			win_resize_frame(e.resize.width, e.resize.height);
 		if (e.type == GKey) {
@@ -539,8 +564,8 @@ int main()
 			case 'h': if (w->cu) --w->cu; cloc = CTop; break;
 			case 'e'-'a' + 1: win_scroll(w,  1); break;
 			case 'y'-'a' + 1: win_scroll(w, -1); break;
-			case '+': if (w->hrig < 25000) w->hrig += 1 + w->hrig/10; break;
-			case '-': if (w->hrig > 10) w->hrig -= 1 + w->hrig/10; break;
+			// case '+': if (w->hrig < 25000) w->hrig += 1 + w->hrig/10; break;
+			// case '-': if (w->hrig > 10) w->hrig -= 1 + w->hrig/10; break;
 			case 'l'-'a'+1: win_show_cursor(w, CMid); break;
 			default:
 				if (e.key >= '1' && e.key <= '9') {

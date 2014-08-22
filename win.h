@@ -27,7 +27,6 @@ struct w {
 	int nl;                /* current number of lines */
 	unsigned rev;          /* on-screen revision or 0 if dirty */
 	unsigned cu;           /* cursor offset */
-	int hrig;              /* horizontal rigidity */
 	EBuf *eb;              /* underlying buffer object */
 	GRect gr;              /* location on the screen */
 };
