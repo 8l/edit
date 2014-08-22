@@ -95,11 +95,14 @@ struct gui {
 	void (*fini)(void);
 	void (*sync)(void);
 	void (*getfont)(GFont *fret);
+	void (*decorate)(GRect *clip, int dirty);
 	void (*drawtext)(GRect *clip, Rune *str, int len,
 	                 int x, int y, GColor color);
 	void (*drawrect)(GRect *clip, int x, int y, int w, int h, GColor c);
 	int (*textwidth)(Rune *str, int len);
 	int (*nextevent)(GEvent *eret);
+	int hmargin;
+	int vmargin;
 };
 
 /* Available gui modules */

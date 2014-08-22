@@ -18,8 +18,6 @@ enum {
 	TabWidth = 8,       /* tabulation width */
 	MaxWidth = 500,     /* maximum number of characters on a line */
 	MaxHeight = 500,    /* maximum number of lines */
-	HMargin = 12,       /* horizontal margin */
-	VMargin = 2,        /* vertical margin */
 	MaxWins = 6,        /* maximum number of windows */
 	TagRatio = 3,       /* fraction of the screen for the tag */
 };

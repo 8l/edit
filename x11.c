@@ -305,8 +305,11 @@ struct gui gui_x11 = {
 	.fini		= fini,
 	.sync		= sync,
 	.getfont	= getfont,
+	.decorate       = 0 /* decorate */,
 	.drawtext	= drawtext,
 	.drawrect	= drawrect,
 	.textwidth	= textwidth,
 	.nextevent	= nextevent,
+	.hmargin        = 12,
+	.vmargin        = 2,
 };

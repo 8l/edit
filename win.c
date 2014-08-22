@@ -199,7 +199,7 @@ win_set_cursor(W *w, int x, int y)
 	int lx;
 	unsigned p;
 
-	y = (y - VMargin) / font.height;
+	y = (y - g->vmargin) / font.height;
 	if (y < 0 || y >= w->nl)
 		return;
 
@@ -207,7 +207,7 @@ win_set_cursor(W *w, int x, int y)
 	lx = w->gr.x;
 	for (; p < w ->l[y+1] - 1; p++) {
 		lx += runewidth(buf_get(&w->eb->b, p), lx);
-		if (lx + HMargin >= x)
+		if (lx + g->hmargin >= x)
 			break;
 	}
 	w->rev = 0;
@@ -358,8 +358,8 @@ draw(W *w, GColor bg)
 
 	sel = 0;
 	cw = 0;
-	x = HMargin;
-	y = VMargin + font.ascent;
+	x = g->hmargin;
+	y = g->vmargin + font.ascent;
 	f.n = 0;
 	flushfrag(&f, w, x, y, sel);
 	next = &w->l[1];
@@ -367,7 +367,7 @@ draw(W *w, GColor bg)
 	for (c=w->l[0]; c<w->l[w->nl]; c++) {
 		if (c >= *next) {
 			assert(c == *next);
-			x = HMargin;
+			x = g->hmargin;
 			y += font.height;
 			next++;
 			flushfrag(&f, w, x, y, sel);
@@ -379,7 +379,7 @@ draw(W *w, GColor bg)
 		}
 
 		r = buf_get(&w->eb->b, c);
-		rw = runewidth(r, x-HMargin);
+		rw = runewidth(r, x - g->hmargin);
 
 		if (c == w->cu) {
 			cx = x;
@@ -392,7 +392,7 @@ draw(W *w, GColor bg)
 			pushfrag(&f, ' ', rw);
 			flushfrag(&f, w, x, y, sel);
 		} else if (r == '\n')
-			f.w = w->gr.w - HMargin;
+			f.w = w->gr.w - g->hmargin;
 		else
 			pushfrag(&f, r, rw);
 	}
@@ -402,7 +402,7 @@ draw(W *w, GColor bg)
 		g->drawrect(&w->gr, cx, cy, cw, font.height, GXBlack);
 	if (w != &tag.win && w->eb->path)
 	if (w->eb->frev != eb_revision(w->eb))
-		g->drawrect(&w->gr, 2, VMargin, HMargin-4, HMargin-4, GGray);
+		g->drawrect(&w->gr, 2, g->vmargin, g->hmargin-4, g->hmargin-4, GGray);
 	w->rev = eb_revision(w->eb);
 }
 
@@ -415,7 +415,7 @@ move(W *pw, int x, int w, int h)
 	assert(w!=0 && h!=0);
 
 	pw->gr = (GRect){x, 0, w, h};
-	pw->nl = (h - VMargin) / font.height;
+	pw->nl = (h - g->vmargin) / font.height;
 	assert(pw->nl > 0 && pw->nl < MaxHeight);
 
 	win_update(pw);
@@ -464,7 +464,7 @@ lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li)
 		r = buf_get(&w->eb->b, off);
 		rw = runewidth(r, x);
 
-		if (HMargin+x+rw > w->gr.w)
+		if (g->hmargin+x+rw > w->gr.w)
 		if (x != 0) { /* force progress */
 			if (pushoff(li, off, lim != -1u) == 0)
 				break;
