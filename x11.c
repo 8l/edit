@@ -13,6 +13,8 @@ void die(char *);
 #define FONTNAME "Source Code Pro:pixelsize=12"
 
 enum {
+	HMargin = 16,
+	VMargin = 2,
 	Width = 640,
 	Height = 480,
 };
@@ -151,6 +153,18 @@ drawrect(GRect *clip, int x, int y, int w, int h, GColor c)
 		XftDrawRect(xft, &col, x, y, w, h);
 	}
 	dirty = 1;
+}
+
+static void
+decorate(GRect *clip, int dirty, GColor c)
+{
+	int boxh;
+
+	boxh = VMargin + font->height;
+	drawrect(clip, HMargin-3, 0, 1, clip->h, c);
+	drawrect(clip, 0, boxh, HMargin-3, 1, c);
+	if (dirty)
+		drawrect(clip, 2, 2, HMargin-7, boxh-4, c);
 }
 
 static int
@@ -305,11 +319,11 @@ struct gui gui_x11 = {
 	.fini		= fini,
 	.sync		= sync,
 	.getfont	= getfont,
-	.decorate       = 0 /* decorate */,
+	.decorate       = decorate,
 	.drawtext	= drawtext,
 	.drawrect	= drawrect,
 	.textwidth	= textwidth,
 	.nextevent	= nextevent,
-	.hmargin        = 12,
-	.vmargin        = 2,
+	.hmargin        = HMargin,
+	.vmargin        = VMargin,
 };

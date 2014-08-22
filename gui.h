@@ -16,6 +16,9 @@ struct gcolor {
 	unsigned char x;
 };
 
+#define GDarken(c,n) \
+	(GColor){ (c.red*n)/10, (c.green*n)/10, (c.blue*n)/10, c.x }
+
 #define GBlack      (GColor){ 0, 0, 0, 0 }
 #define GGray       (GColor){ 150, 150, 150, 0 }
 #define GPaleBlue   (GColor){ 208, 235, 255, 0 }
@@ -95,7 +98,7 @@ struct gui {
 	void (*fini)(void);
 	void (*sync)(void);
 	void (*getfont)(GFont *fret);
-	void (*decorate)(GRect *clip, int dirty);
+	void (*decorate)(GRect *clip, int dirty, GColor color);
 	void (*drawtext)(GRect *clip, Rune *str, int len,
 	                 int x, int y, GColor color);
 	void (*drawrect)(GRect *clip, int x, int y, int w, int h, GColor c);
