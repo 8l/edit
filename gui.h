@@ -16,9 +16,6 @@ struct gcolor {
 	unsigned char x;
 };
 
-#define GDarken(c,n) \
-	(GColor){ (c.red*n)/10, (c.green*n)/10, (c.blue*n)/10, c.x }
-
 #define GBlack      (GColor){ 0, 0, 0, 0 }
 #define GGray       (GColor){ 150, 150, 150, 0 }
 #define GPaleBlue   (GColor){ 208, 235, 255, 0 }
@@ -43,7 +40,8 @@ struct gevent {
 	enum {
 		GResize,
 		GKey,
-		GMouseClick,
+		GMouseDown,
+		GMouseUp,
 		GMouseSelect,
 	} type;
 

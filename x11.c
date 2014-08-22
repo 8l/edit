@@ -59,7 +59,7 @@ init()
 	swa.bit_gravity = NorthWestGravity;
 	XChangeWindowAttributes(d, win, CWBackingStore|CWBitGravity, &swa);
 	XStoreName(d, win, "ED");
-	XSelectInput(d, win, StructureNotifyMask|ButtonPressMask|Button1MotionMask|KeyPressMask|ExposureMask);
+	XSelectInput(d, win, StructureNotifyMask|ButtonPressMask|ButtonReleaseMask|Button1MotionMask|KeyPressMask|ExposureMask);
 
 	/* simulate an initial resize and map the window */
 	ce.type = ConfigureNotify;
@@ -226,7 +226,11 @@ nextevent(GEvent *gev)
 			break;
 
 		case ButtonPress:
-			gev->type = GMouseClick;
+			gev->type = GMouseDown;
+		if (0) {
+		case ButtonRelease:
+			gev->type = GMouseUp;
+		}
 
 			switch (e.xbutton.button) {
 			case Button1:

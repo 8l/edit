@@ -48,7 +48,7 @@ gev(int fd, int flag, void *unused)
 			}
 			scrolling = 0;
 			break;
-		case GMouseClick:
+		case GMouseDown:
 			if (e.mouse.button == GBLeft)
 				win_set_cursor(curwin, e.mouse.x, e.mouse.y);
 			else if (e.mouse.button == GBWheelUp)
