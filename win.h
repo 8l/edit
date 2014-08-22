@@ -14,7 +14,6 @@ typedef struct w W;
 	"|fmt\n"
 
 enum {
-	FScale = 16384,     /* fixed point scale for fractions */
 	TabWidth = 8,       /* tabulation width */
 	MaxWidth = 500,     /* maximum number of characters on a line */
 	MaxHeight = 500,    /* maximum number of lines */
