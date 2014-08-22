@@ -217,7 +217,7 @@ win_set_cursor(W *w, int x, int y)
 	int lx;
 	unsigned p;
 
-	y = (y - g->vmargin) / font.height;
+	y = (y - g->vmargin - w->gr.y) / font.height;
 	if (y < 0 || y >= w->nl)
 		return;
 
