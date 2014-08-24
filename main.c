@@ -27,7 +27,7 @@ die(char *m)
 static int
 gev(int fd, int flag, void *unused)
 {
-	static int issel;
+	static unsigned selbeg;
 	GEvent e;
 
 	(void) fd;
@@ -49,25 +49,27 @@ gev(int fd, int flag, void *unused)
 			scrolling = 0;
 			break;
 		case GMouseDown:
-			if (e.mouse.button == GBLeft)
+			if (e.mouse.button == GBLeft) {
 				win_set_cursor(curwin, e.mouse.x, e.mouse.y);
-			else if (e.mouse.button == GBWheelUp)
+				selbeg = curwin->cu;
+				goto Select;
+			} else if (e.mouse.button == GBWheelUp) {
 				win_scroll(curwin, -4);
-			else if (e.mouse.button == GBWheelDown)
+			} else if (e.mouse.button == GBWheelDown) {
 				win_scroll(curwin, +4);
+			}
 			break;
 		case GMouseSelect:
 			win_set_cursor(curwin, e.mouse.x, e.mouse.y);
-			if (issel)
+			if (selbeg != -1u && curwin->cu != selbeg) {
+				eb_setmark(curwin->eb, SelBeg, selbeg);
 				eb_setmark(curwin->eb, SelEnd, curwin->cu);
-			else
-				eb_setmark(curwin->eb, SelBeg, curwin->cu);
-			issel = 1;
+			}
 			goto Select;
 		default:
 			break;
 		}
-		issel = 0;
+		selbeg = -1u;
 	Select:
 
 		if (curwin->cu >= curwin->l[curwin->nl])
