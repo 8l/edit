@@ -4,10 +4,16 @@
 
 #include "unicode.h"
 
-typedef struct gcolor GColor;
-typedef struct gfont  GFont;
-typedef struct grect  GRect;
-typedef struct gevent GEvent;
+typedef struct gcolor   GColor;
+typedef struct gfont    GFont;
+typedef struct grect    GRect;
+typedef struct gevent   GEvent;
+typedef enum   gpointer GPointer;
+
+enum gpointer {
+	GPNormal,
+	GPResize,
+};
 
 struct gcolor {
 	unsigned char red;
@@ -100,6 +106,8 @@ struct gui {
 	void (*drawtext)(GRect *clip, Rune *str, int len,
 	                 int x, int y, GColor color);
 	void (*drawrect)(GRect *clip, int x, int y, int w, int h, GColor c);
+	int (*ptincontrol)(GRect *clip, int x, int y);
+	void (*setpointer)(GPointer pt);
 	int (*textwidth)(Rune *str, int len);
 	int (*nextevent)(GEvent *eret);
 	int hmargin;

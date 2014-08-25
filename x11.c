@@ -5,6 +5,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xft/Xft.h>
+#include <X11/cursorfont.h>
 
 #include "gui.h"
 
@@ -169,6 +170,27 @@ decorate(GRect *clip, int dirty, GColor c)
 }
 
 static int
+ptincontrol(GRect *clip, int x, int y)
+{
+	return
+		(x -= clip->x) >= 0 && x < HMargin-3 &&
+		(y -= clip->y) >= 0 && y  < VMargin + font->height;
+}
+
+static void
+setpointer(GPointer pt)
+{
+	static unsigned int map[] = {
+		[GPNormal] = XC_left_ptr,
+		[GPResize] = XC_center_ptr,
+	};
+	Cursor c;
+
+	c = XCreateFontCursor(d, map[pt]);
+	XDefineCursor(d, win, c);
+}
+
+static int
 textwidth(Rune *str, int len)
 {
 	XGlyphInfo gi;
@@ -323,12 +345,14 @@ struct gui gui_x11 = {
 	.init		= init,
 	.fini		= fini,
 	.sync		= sync,
-	.getfont	= getfont,
 	.decorate       = decorate,
-	.drawtext	= drawtext,
 	.drawrect	= drawrect,
-	.textwidth	= textwidth,
+	.drawtext	= drawtext,
+	.getfont	= getfont,
 	.nextevent	= nextevent,
+	.ptincontrol    = ptincontrol,
+	.setpointer     = setpointer,
+	.textwidth	= textwidth,
 	.hmargin        = HMargin,
 	.vmargin        = VMargin,
 	.border         = Border,
