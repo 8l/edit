@@ -28,7 +28,10 @@ static int
 gev(int fd, int flag, void *unused)
 {
 	static unsigned selbeg;
+	static W *mwin;
+	static int resizing;
 	unsigned pos;
+	W *win;
 	GEvent e;
 
 	(void) fd;
@@ -51,7 +54,16 @@ gev(int fd, int flag, void *unused)
 			break;
 		case GMouseDown:
 			if (e.mouse.button == GBLeft) {
-				win_locus(e.mouse.x, e.mouse.y, &pos);
+				mwin = win_locus(e.mouse.x, e.mouse.y, &pos);
+				if (g->ptincontrol(&mwin->gr, e.mouse.x, e.mouse.y)) {
+					g->setpointer(GPResize);
+					resizing = 1;
+					break;
+				}
+				if (mwin != curwin) {
+					curwin = mwin;
+					break;
+				}
 				selbeg = pos;
 				goto Select;
 			} else if (e.mouse.button == GBWheelUp) {
@@ -60,12 +72,24 @@ gev(int fd, int flag, void *unused)
 				win_scroll(curwin, +4);
 			}
 			break;
-		case GMouseSelect:
-			win_locus(e.mouse.x, e.mouse.y, &pos);
-			if (selbeg != -1u && pos != selbeg) {
-				eb_setmark(curwin->eb, SelBeg, selbeg);
-				eb_setmark(curwin->eb, SelEnd, pos);
+		case GMouseUp:
+			if (resizing) {
+				resizing = 0;
+				win_resize(mwin, e.mouse.x, e.mouse.y);
+				g->setpointer(GPNormal);
 			}
+			break;
+		case GMouseSelect:
+			if (resizing)
+				break;
+			win = win_locus(e.mouse.x, e.mouse.y, &pos);
+			if (mwin == win) {
+				if (selbeg != -1u && pos != selbeg) {
+					eb_setmark(curwin->eb, SelBeg, selbeg);
+					eb_setmark(curwin->eb, SelEnd, pos);
+				}
+			} else
+				pos = curwin->cu;
 			goto Select;
 		default:
 			break;
