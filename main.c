@@ -77,7 +77,7 @@ gev(int fd, int flag, void *unused)
 		case GMouseUp:
 			if (resizing) {
 				resizing = 0;
-				win_resize(mwin, e.mouse.x, e.mouse.y);
+				win_move(mwin, e.mouse.x, e.mouse.y);
 				g->setpointer(GPNormal);
 			}
 			break;

@@ -32,15 +32,26 @@ static int get(W *, EBuf *, unsigned);
 static int put(W *, EBuf *, unsigned);
 static int look(W *, EBuf *, unsigned);
 static int run(W *, EBuf *, unsigned);
+static int new(W *, EBuf *, unsigned);
 
 static char *errstr;
 static ECmd etab[] = {
 	{ "Get", get },
 	{ "Put", put },
 	{ "Look", look },
+	{ "New", new },
 	{ 0, run },
 };
 
+static int
+new(W *w, EBuf *eb, unsigned pos)
+{
+	extern W *curwin;
+
+	(void)w; (void)eb; (void)pos;
+	curwin = win_new(eb_new());
+	return 1;
+}
 
 /* ex_run - Execute a command in the current window at
  * position [p0].  The command is first searched among

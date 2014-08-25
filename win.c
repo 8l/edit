@@ -77,12 +77,13 @@ win_new(EBuf *eb)
 			break;
 	}
 
-	for (i=0, x=0; screen[i] && screen[i+1]; i++)
-		x += screen[i]->gr.w;
+	for (i=0; screen[i] && screen[i+1]; i++)
+		;
 	if (!screen[i])
 		size = fwidth;
 	else {
-		size = screen[i]->gr.w - screen[i]->gr.w / 2;
+		size = screen[i]->gr.w - screen[i]->gr.w / 2 - g->border;
+		x = screen[i]->gr.x;
 		x += (screen[i]->gr.w /= 2) + g->border;
 		win_update(screen[i]);
 		i++;
@@ -121,11 +122,9 @@ win_locus(int x1, int y1, unsigned *pos)
 	int i, x;
 	unsigned p;
 
-	for (i=0, x=0; (w = screen[i]); i++)
-		if (x <= x1 && x1 < x + w->gr.w)
+	for (i=0; (w = screen[i]); i++)
+		if (x1 < w->gr.x + w->gr.w)
 			break;
-		else
-			x += w->gr.w + g->border;
 	if (tag.visible && tag.owner == w)
 	if (y1 >= tag.win.gr.y)
 		w = &tag.win;
@@ -147,20 +146,54 @@ win_locus(int x1, int y1, unsigned *pos)
 	return w;
 }
 
-/* win_resize - Resize or move a window to the specified
- * location.  The upper-left corner of the window is what
- * moves to the passed coordinates.
+/* win_move - Resize or move a window to approximately set its
+ * upper-left corner to the specified location.
  */
 void
-win_resize(W *w, int x, int y)
+win_move(W *w, int x, int y)
 {
-	W *dwin;
+	W *w1;
+	int i, j, dx;
 
+	if (x < 0)
+		x = 0;
+	if (x > fwidth - g->hmargin)
+		x = fwidth - g->hmargin;
+	if (y < 0)
+		y = 0;
+	if (y > fheight - g->vmargin)
+		y = fheight - g->vmargin;
 	if (w == &tag.win) {
 		if (y > w->gr.y)
 			tag.owner->rev = 0;
 		move(w, w->gr.x, y, w->gr.w, fheight - y);
 		return;
+	}
+	for (i=j=0; screen[i+1]; i++)
+		if (screen[i] == w) {
+			w1 = screen[i+1];
+			screen[i+1] = screen[i];
+			screen[i] = w1;
+			j++;
+		}
+	for (; i>0 && x < screen[i-1]->gr.x; i--) {
+		w1 = screen[i-1];
+		screen[i-1] = screen[i];
+		screen[i] = w1;
+		j--;
+	}
+	if (j != 0)
+		/* window swap */
+		for (i=0, x=0; (w = screen[i]); i++) {
+			move(w, x, 0, w->gr.w, fheight);
+			x += w->gr.w + g->border;
+		}
+	else if (i != 0) {
+		/* window resize */
+		w1 = screen[i-1];
+		dx = x - w->gr.x;
+		move(w, x, 0, w->gr.w - dx, fheight);
+		move(w1, w1->gr.x, 0, w1->gr.w + dx, fheight);
 	}
 }
 
@@ -197,7 +230,8 @@ win_redraw_frame()
 	W *w;
 	int i;
 
-	for (i=0; (w = screen[i]); i++)
+	for (i=0; (w = screen[i]); i++) {
+		assert(!screen[i+1] || w->gr.x + w->gr.w + g->border == screen[i+1]->gr.x);
 		if (dirty(w)) {
 			if (screen[i+1]) {
 				b = (GRect){ w->gr.x + w->gr.w, 0, g->border, fheight };
@@ -207,6 +241,7 @@ win_redraw_frame()
 			if (tag.owner == w)
 				tag.win.rev = 0;
 		}
+	}
 	if (tag.visible && dirty(&tag.win)) {
 		b = tag.win.gr;
 		b.y -= g->border;
