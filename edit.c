@@ -347,7 +347,7 @@ eb_look(EBuf *eb, unsigned p, Rune *str, unsigned n)
 {
 	unsigned i, j;
 
-	assert(str && n >= 0);
+	assert(str);
 
 	while (p<eb->b.limbo) {
 		i = p++;
