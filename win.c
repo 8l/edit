@@ -147,6 +147,23 @@ win_locus(int x1, int y1, unsigned *pos)
 	return w;
 }
 
+/* win_resize - Resize or move a window to the specified
+ * location.  The upper-left corner of the window is what
+ * moves to the passed coordinates.
+ */
+void
+win_resize(W *w, int x, int y)
+{
+	W *dwin;
+
+	if (w == &tag.win) {
+		if (y > w->gr.y)
+			tag.owner->rev = 0;
+		move(w, w->gr.x, y, w->gr.w, fheight - y);
+		return;
+	}
+}
+
 /* win_resize_frame - Called when the whole frame
  * is resized.
  */

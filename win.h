@@ -36,6 +36,7 @@ void win_init(struct gui *g);
 W *win_new(EBuf *eb);
 void win_delete(W *);
 W *win_locus(int, int, unsigned *);
+void win_resize(W *, int x, int y);
 void win_resize_frame(int w, int h);
 void win_redraw_frame(void);
 void win_scroll(W *, int);
