@@ -28,6 +28,7 @@ static int
 gev(int fd, int flag, void *unused)
 {
 	static unsigned selbeg;
+	unsigned pos;
 	GEvent e;
 
 	(void) fd;
@@ -50,8 +51,8 @@ gev(int fd, int flag, void *unused)
 			break;
 		case GMouseDown:
 			if (e.mouse.button == GBLeft) {
-				win_set_cursor(curwin, e.mouse.x, e.mouse.y);
-				selbeg = curwin->cu;
+				win_locus(e.mouse.x, e.mouse.y, &pos);
+				selbeg = pos;
 				goto Select;
 			} else if (e.mouse.button == GBWheelUp) {
 				win_scroll(curwin, -4);
@@ -60,22 +61,26 @@ gev(int fd, int flag, void *unused)
 			}
 			break;
 		case GMouseSelect:
-			win_set_cursor(curwin, e.mouse.x, e.mouse.y);
-			if (selbeg != -1u && curwin->cu != selbeg) {
+			win_locus(e.mouse.x, e.mouse.y, &pos);
+			if (selbeg != -1u && pos != selbeg) {
 				eb_setmark(curwin->eb, SelBeg, selbeg);
-				eb_setmark(curwin->eb, SelEnd, curwin->cu);
+				eb_setmark(curwin->eb, SelEnd, pos);
 			}
 			goto Select;
 		default:
 			break;
 		}
-		selbeg = -1u;
-	Select:
-
-		if (curwin->cu >= curwin->l[curwin->nl])
-			curwin->cu = curwin->l[curwin->nl-1];
-		if (curwin->cu < curwin->l[0])
-			curwin->cu = curwin->l[0];
+		if (0) {
+		Select:
+			curwin->cu = pos;
+			curwin->rev = 0;
+		} else {
+			selbeg = -1u;
+			if (curwin->cu >= curwin->l[curwin->nl])
+				curwin->cu = curwin->l[curwin->nl-1];
+			if (curwin->cu < curwin->l[0])
+				curwin->cu = curwin->l[0];
+		}
 	}
 
 	win_redraw_frame();

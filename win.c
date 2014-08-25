@@ -107,6 +107,44 @@ win_delete(W *w)
 	memset(w, 0, sizeof(W));
 	w->eb = 0;
 	// FIXME, create an invariant such that win_new can be simplified
+	// also, do not delete if only one window is left
+}
+
+/* win_locus - Find a window on the screen at position [x1],
+ * [y1].  If the argument pointer is non null, it is used to
+ * store the position of the pointed rune.
+ */
+W *
+win_locus(int x1, int y1, unsigned *pos)
+{
+	W *w;
+	int i, x;
+	unsigned p;
+
+	for (i=0, x=0; (w = screen[i]); i++)
+		if (x <= x1 && x1 < x + w->gr.w)
+			break;
+		else
+			x += w->gr.w + g->border;
+	if (tag.visible && tag.owner == w)
+	if (y1 >= tag.win.gr.y)
+		w = &tag.win;
+	if (!pos || !w)
+		return w;
+	y1 = (y1 - g->vmargin - w->gr.y) / font.height;
+	if (y1 < 0 || y1 >= w->nl) {
+		*pos = -1u;
+		return w;
+	}
+	p = w->l[y1];
+	x = w->gr.x;
+	for (; p < w ->l[y1+1] - 1; p++) {
+		x += runewidth(buf_get(&w->eb->b, p), x);
+		if (x + g->hmargin >= x1)
+			break;
+	}
+	*pos = p;
+	return w;
 }
 
 /* win_resize_frame - Called when the whole frame
@@ -205,31 +243,6 @@ win_scroll(W *w, int n)
 
 	w->l[0] = start;
 	win_update(w);
-}
-
-/* win_set_cursor - Changes the cursor of [w] to be on
- * on the rune displayed at position [x], [y]. The window
- * [w] is marked for redraw.
- */
-void
-win_set_cursor(W *w, int x, int y)
-{
-	int lx;
-	unsigned p;
-
-	y = (y - g->vmargin - w->gr.y) / font.height;
-	if (y < 0 || y >= w->nl)
-		return;
-
-	p = w->l[y];
-	lx = w->gr.x;
-	for (; p < w ->l[y+1] - 1; p++) {
-		lx += runewidth(buf_get(&w->eb->b, p), lx);
-		if (lx + g->hmargin >= x)
-			break;
-	}
-	w->rev = 0;
-	w->cu = p;
 }
 
 /* win_show_cursor - Find the cursor in [w] and adjust
