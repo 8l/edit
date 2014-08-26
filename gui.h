@@ -106,13 +106,13 @@ struct gui {
 	void (*drawtext)(GRect *clip, Rune *str, int len,
 	                 int x, int y, GColor color);
 	void (*drawrect)(GRect *clip, int x, int y, int w, int h, GColor c);
-	int (*ptincontrol)(GRect *clip, int x, int y);
 	void (*setpointer)(GPointer pt);
 	int (*textwidth)(Rune *str, int len);
 	int (*nextevent)(GEvent *eret);
 	int hmargin;
 	int vmargin;
 	int border;
+	GRect actionr;
 };
 
 /* Available gui modules */

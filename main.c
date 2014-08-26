@@ -28,7 +28,7 @@ static int
 gev(int fd, int flag, void *unused)
 {
 	static unsigned selbeg;
-	static W *mwin;
+	static W *mousewin;
 	static int resizing;
 	unsigned pos;
 	W *win;
@@ -53,31 +53,29 @@ gev(int fd, int flag, void *unused)
 			scrolling = 0;
 			break;
 		case GMouseDown:
+			mousewin = win_locus(e.mouse.x, e.mouse.y, &pos);
+			if (!mousewin)
+				break;
 			if (e.mouse.button == GBLeft) {
-				mwin = win_locus(e.mouse.x, e.mouse.y, &pos);
-				if (!mwin)
-					break;
-				if (g->ptincontrol(&mwin->gr, e.mouse.x, e.mouse.y)) {
+				if (e.mouse.x - mousewin->gr.x < g->actionr.w)
+				if (e.mouse.y - mousewin->gr.y < g->actionr.h) {
 					g->setpointer(GPResize);
 					resizing = 1;
 					break;
 				}
-				if (mwin == curwin) {
-					selbeg = pos;
-					goto Select;
-				}
-				curwin = mwin;
-				mwin = 0;
+				curwin = mousewin;
+				selbeg = pos;
+				goto Setcursor;
 			} else if (e.mouse.button == GBWheelUp) {
-				win_scroll(curwin, -4);
+				win_scroll(mousewin, -4);
 			} else if (e.mouse.button == GBWheelDown) {
-				win_scroll(curwin, +4);
+				win_scroll(mousewin, +4);
 			}
 			break;
 		case GMouseUp:
 			if (resizing) {
 				resizing = 0;
-				win_move(mwin, e.mouse.x, e.mouse.y);
+				win_move(mousewin, e.mouse.x, e.mouse.y);
 				g->setpointer(GPNormal);
 			}
 			break;
@@ -85,7 +83,7 @@ gev(int fd, int flag, void *unused)
 			if (resizing)
 				break;
 			win = win_locus(e.mouse.x, e.mouse.y, &pos);
-			if (win && mwin == win) {
+			if (win && mousewin == win) {
 				assert(selbeg != -1u);
 				if (pos != selbeg) {
 					eb_setmark(curwin->eb, SelBeg, selbeg);
@@ -93,21 +91,19 @@ gev(int fd, int flag, void *unused)
 				}
 			} else
 				pos = curwin->cu;
-			goto Select;
+			goto Setcursor;
 		default:
 			break;
 		}
-		if (0) {
-		Select:
-			curwin->cu = pos;
-			curwin->rev = 0;
-		} else {
-			selbeg = -1u;
-			if (curwin->cu >= curwin->l[curwin->nl])
-				curwin->cu = curwin->l[curwin->nl-1];
-			if (curwin->cu < curwin->l[0])
-				curwin->cu = curwin->l[0];
-		}
+		selbeg = -1u;
+		if (curwin->cu >= curwin->l[curwin->nl])
+			curwin->cu = curwin->l[curwin->nl-1];
+		if (curwin->cu < curwin->l[0])
+			curwin->cu = curwin->l[0];
+		continue;
+	Setcursor:
+		curwin->cu = pos;
+		curwin->rev = 0;
 	}
 
 	win_redraw_frame();

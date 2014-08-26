@@ -83,6 +83,10 @@ init()
 	pbuf = XCreatePixmap(d, win, Width, Height, depth);
 	xft = XftDrawCreate(d, pbuf, visual, cmap);
 
+	/* set the action rectangle */
+	gui_x11.actionr.w = HMargin - 3;
+	gui_x11.actionr.h = VMargin + font->height;
+
 	return XConnectionNumber(d);
 }
 
@@ -167,14 +171,6 @@ decorate(GRect *clip, int dirty, GColor c)
 	drawrect(clip, 0, boxh, HMargin-3, 1, c);
 	if (dirty)
 		drawrect(clip, 2, 2, HMargin-7, boxh-4, c);
-}
-
-static int
-ptincontrol(GRect *clip, int x, int y)
-{
-	return
-		(x -= clip->x) >= 0 && x < HMargin-3 &&
-		(y -= clip->y) >= 0 && y  < VMargin + font->height;
 }
 
 static void
@@ -350,10 +346,10 @@ struct gui gui_x11 = {
 	.drawtext	= drawtext,
 	.getfont	= getfont,
 	.nextevent	= nextevent,
-	.ptincontrol    = ptincontrol,
 	.setpointer     = setpointer,
 	.textwidth	= textwidth,
 	.hmargin        = HMargin,
 	.vmargin        = VMargin,
 	.border         = Border,
+	.actionr        = {0, 0, 0, 0},
 };
