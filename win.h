@@ -11,6 +11,7 @@ typedef struct w W;
 #define TagInit \
 	"Look \n" \
 	"Get \n" \
+	"New\n" \
 	"|fmt\n"
 
 enum {

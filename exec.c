@@ -43,16 +43,6 @@ static ECmd etab[] = {
 	{ 0, run },
 };
 
-static int
-new(W *w, EBuf *eb, unsigned pos)
-{
-	extern W *curwin;
-
-	(void)w; (void)eb; (void)pos;
-	curwin = win_new(eb_new());
-	return 1;
-}
-
 /* ex_run - Execute a command in the current window at
  * position [p0].  The command is first searched among
  * the list of builtins, if not found, it is run in a shell.
@@ -325,6 +315,18 @@ look(W *w, EBuf *eb, unsigned p0)
 		return 0;
 	}
 	return 1;
+}
+
+static int
+new(W *w, EBuf *eb, unsigned pos)
+{
+	extern W *curwin;
+
+	(void)eb; (void)pos;
+	w = win_new(eb_new());
+	if (w)
+		curwin = win_tag_toggle(w);
+	return 0;
 }
 
 typedef struct run Run;
