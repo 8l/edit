@@ -65,36 +65,35 @@ win_init(struct gui *gui)
 W *
 win_new(EBuf *eb)
 {
-	W *w;
+	W *w, *w1;
 	int i, x, size;
 
 	assert(eb);
 
-	for (w=wins;; w++) {
-		if (w - wins >= MaxWins)
+	for (w1=wins;; w1++) {
+		if (w1 - wins >= MaxWins)
 			return 0;
-		if (!w->eb)
+		if (!w1->eb)
 			break;
 	}
 
-	for (i=0; screen[i] && screen[i+1]; i++)
+	for (i=0; (w = screen[i]) && screen[i+1]; i++)
 		;
-	if (!screen[i])
+	if (!w)
 		size = fwidth;
 	else {
-		size = screen[i]->gr.w - screen[i]->gr.w / 2 - g->border;
-		x = screen[i]->gr.x;
-		x += (screen[i]->gr.w /= 2) + g->border;
-		win_update(screen[i]);
+		size = w->gr.w - w->gr.w/2 - g->border;
+		move(w, w->gr.x, 0, w->gr.w/2, fheight);
+		x = w->gr.x + w->gr.w + g->border;
 		i++;
 	}
 
-	w->eb = eb;
-	move(w, x, 0, size, fheight);
-	screen[i] = w;
+	w1->eb = eb;
+	move(w1, x, 0, size, fheight);
+	screen[i] = w1;
 	screen[i+1] = 0;
 
-	return w;
+	return w1;
 }
 
 /* win_delete - Delete a window created by win_new.
@@ -136,10 +135,10 @@ win_locus(int x1, int y1, unsigned *pos)
 		return w;
 	}
 	p = w->l[y1];
-	x = w->gr.x;
+	x = 0;
 	for (; p < w ->l[y1+1] - 1; p++) {
 		x += runewidth(buf_get(&w->eb->b, p), x);
-		if (x + g->hmargin >= x1)
+		if (x + w->gr.x + g->hmargin >= x1)
 			break;
 	}
 	*pos = p;
