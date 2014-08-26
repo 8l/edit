@@ -79,9 +79,10 @@ win_new(EBuf *eb)
 
 	for (i=0; (w = screen[i]) && screen[i+1]; i++)
 		;
-	if (!w)
+	if (!w) {
+		x = 0;
 		size = fwidth;
-	else {
+	} else {
 		size = w->gr.w - w->gr.w/2 - g->border;
 		move(w, w->gr.x, 0, w->gr.w/2, fheight);
 		x = w->gr.x + w->gr.w + g->border;
