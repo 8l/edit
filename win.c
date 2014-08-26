@@ -111,30 +111,18 @@ win_delete(W *w)
 	// also, do not delete if only one window is left
 }
 
-/* win_locus - Find a window on the screen at position [x1],
- * [y1].  If the argument pointer is non null, it is used to
- * store the position of the pointed rune.
+/* win_at - Return the buffer offset at the specified location,
+ * if no offset is found the cursor position is returned.
  */
-W *
-win_locus(int x1, int y1, unsigned *pos)
+unsigned
+win_at(W *w, int x1, int y1)
 {
-	W *w;
-	int i, x;
+	int x;
 	unsigned p;
 
-	for (i=0; (w = screen[i]); i++)
-		if (x1 < w->gr.x + w->gr.w)
-			break;
-	if (tag.visible && tag.owner == w)
-	if (y1 >= tag.win.gr.y)
-		w = &tag.win;
-	if (!pos || !w)
-		return w;
 	y1 = (y1 - g->vmargin - w->gr.y) / font.height;
-	if (y1 < 0 || y1 >= w->nl) {
-		*pos = -1u;
-		return w;
-	}
+	if (y1 < 0 || y1 >= w->nl)
+		return w->cu;
 	p = w->l[y1];
 	x = 0;
 	for (; p < w ->l[y1+1] - 1; p++) {
@@ -142,7 +130,24 @@ win_locus(int x1, int y1, unsigned *pos)
 		if (x + w->gr.x + g->hmargin >= x1)
 			break;
 	}
-	*pos = p;
+	return p;
+}
+
+/* win_which - Find the window at the specified position, null
+ * is returned if no window is found.
+ */
+W *
+win_which(int x1, int y1)
+{
+	W *w;
+	int i;
+
+	for (i=0; (w = screen[i]); i++)
+		if (x1 < w->gr.x + w->gr.w)
+			break;
+	if (tag.visible && tag.owner == w)
+	if (y1 >= tag.win.gr.y)
+		return &tag.win;
 	return w;
 }
 

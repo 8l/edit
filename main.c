@@ -31,7 +31,6 @@ gev(int fd, int flag, void *unused)
 	static W *mousewin;
 	static int resizing;
 	unsigned pos;
-	W *win;
 	GEvent e;
 
 	(void) fd;
@@ -53,7 +52,7 @@ gev(int fd, int flag, void *unused)
 			scrolling = 0;
 			break;
 		case GMouseDown:
-			mousewin = win_locus(e.mouse.x, e.mouse.y, &pos);
+			mousewin = win_which(e.mouse.x, e.mouse.y);
 			if (!mousewin)
 				break;
 			if (e.mouse.button == GBLeft) {
@@ -64,6 +63,7 @@ gev(int fd, int flag, void *unused)
 					break;
 				}
 				curwin = mousewin;
+				pos = win_at(mousewin, e.mouse.x, e.mouse.y);
 				selbeg = pos;
 				goto Setcursor;
 			} else if (e.mouse.button == GBWheelUp) {
@@ -82,15 +82,12 @@ gev(int fd, int flag, void *unused)
 		case GMouseSelect:
 			if (resizing)
 				break;
-			win = win_locus(e.mouse.x, e.mouse.y, &pos);
-			if (win && mousewin == win) {
-				assert(selbeg != -1u);
-				if (pos != selbeg) {
-					eb_setmark(curwin->eb, SelBeg, selbeg);
-					eb_setmark(curwin->eb, SelEnd, pos);
-				}
-			} else
-				pos = curwin->cu;
+			assert(selbeg != -1u);
+			pos = win_at(mousewin, e.mouse.x, e.mouse.y);
+			if (pos != selbeg) {
+				eb_setmark(curwin->eb, SelBeg, selbeg);
+				eb_setmark(curwin->eb, SelEnd, pos);
+			}
 			goto Setcursor;
 		default:
 			break;
