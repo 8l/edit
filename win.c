@@ -455,7 +455,6 @@ draw(W *w, GColor bg)
 			x = g->hmargin;
 			y += font.height;
 			next++;
-			f.w = fwidth;
 			flushfrag(&f, w, x, y, sel);
 			if (next - w->l > w->nl)
 				break;
