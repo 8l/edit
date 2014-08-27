@@ -1,4 +1,3 @@
-CC     := clang
 LD     := $(CC)
 TANGLE := ctangle
 
