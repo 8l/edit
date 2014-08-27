@@ -452,13 +452,16 @@ draw(W *w, GColor bg)
 	flushfrag(&f, w, x, y, sel);
 	next = &w->l[1];
 
-	for (c=w->l[0]; c<w->l[w->nl]; c++) {
+	for (c=w->l[0];; c++) {
 		if (c >= *next) {
 			assert(c == *next);
 			x = g->hmargin;
 			y += font.height;
 			next++;
+			f.w = fwidth;
 			flushfrag(&f, w, x, y, sel);
+			if (next - w->l > w->nl)
+				break;
 		}
 
 		if (sel ^ (s0 <= c && c < s1)) {
@@ -479,13 +482,10 @@ draw(W *w, GColor bg)
 		if (r == '\t') {
 			pushfrag(&f, ' ', rw);
 			flushfrag(&f, w, x, y, sel);
-		} else if (r == '\n')
-			f.w = w->gr.w - g->hmargin;
-		else
+		} else if (r != '\n')
 			pushfrag(&f, r, rw);
 	}
 
-	flushfrag(&f, w, 0, 0, sel);
 	if (cw != 0)
 		g->drawrect(&w->gr, cx, cy, cw, font.height, GXBlack);
 	g->decorate(&w->gr, w->eb->path && w->eb->frev != eb_revision(w->eb), GGray);
