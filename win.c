@@ -217,10 +217,6 @@ win_resize_frame(int w1, int h1)
 			w = w1 - x;
 		move(screen[i], x, 0, w, h1);
 		x += w + g->border;
-		if (tag.visible && tag.owner == screen[i]) {
-			win_tag_toggle(screen[i]);
-			win_tag_toggle(screen[i]);
-		}
 	}
 	fwidth = w1;
 	fheight = h1;
@@ -499,14 +495,18 @@ draw(W *w, GColor bg)
 void
 move(W *pw, int x, int y, int w, int h)
 {
-	assert(w!=0 && h!=0);
+	int tagh;
 
-	pw->gr = (GRect){x, y, w, h};
+	assert(w!=0 && h!=0);
 	pw->nl = (h - g->vmargin) / font.height;
 	if (pw->nl == 0)
 		pw->nl = 1;
 	assert(pw->nl < MaxHeight);
-
+	if (tag.visible && tag.owner == pw) {
+		tagh = (tag.win.gr.h * h) / pw->gr.h;
+		move(&tag.win, x, h - tagh, w, tagh);
+	}
+	pw->gr = (GRect){x, y, w, h};
 	win_update(pw);
 }
 
