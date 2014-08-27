@@ -418,11 +418,9 @@ run(W *w, EBuf *eb, unsigned p0)
 		return 0;
 	cmd = buftobytes(&eb->b, p0, p1, 0);
 	ctyp = cmd[0];
-	if (strchr("<>|", ctyp))
-		cmd++;
-	else
+	if (!strchr("<>|", ctyp))
 		ctyp = 0;
-	if (ctyp != 0) {
+	else {
 		s0 = eb_getmark(w->eb, SelBeg);
 		s1 = eb_getmark(w->eb, SelEnd);
 		if (s1 <= s0 || s0 == -1u || s1 == -1u)
@@ -435,7 +433,7 @@ run(W *w, EBuf *eb, unsigned p0)
 		close(pout[0]);
 		argv[0] = "/bin/sh";
 		argv[1] = "-c";
-		argv[2] = cmd;
+		argv[2] = &cmd[ctyp ? 1 : 0];
 		argv[3] = 0;
 		/* XXX do not leak file descriptors */
 		dup2(pin[0], 0);
@@ -444,6 +442,7 @@ run(W *w, EBuf *eb, unsigned p0)
 		execv(argv[0], argv);
 		die("cannot exec");
 	}
+	free(cmd);
 	close(pin[0]);
 	close(pout[1]);
 	r = calloc(1, sizeof *r);
