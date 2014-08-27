@@ -32,7 +32,6 @@ static Window win;
 static Pixmap pbuf;
 XftDraw *xft;
 static int w, h;
-static int dirty;
 
 static int
 init()
@@ -129,7 +128,6 @@ drawtext(GRect *clip, Rune *str, int len, int x, int y, GColor c)
 	// set clip!
 	xftcolor(&col, c);
 	XftDrawString32(xft, &col, font, x, y, (FcChar32 *)str, len);
-	dirty = 1;
 }
 
 static void
@@ -158,7 +156,6 @@ drawrect(GRect *clip, int x, int y, int w, int h, GColor c)
 		xftcolor(&col, c);
 		XftDrawRect(xft, &col, x, y, w, h);
 	}
-	dirty = 1;
 }
 
 static void
@@ -198,11 +195,8 @@ textwidth(Rune *str, int len)
 static void
 sync()
 {
-	if (dirty) {
-		XCopyArea(d, pbuf, win, gc, 0, 0, w, h, 0, 0);
-		XFlush(d);
-		dirty = 0;
-	}
+	XCopyArea(d, pbuf, win, gc, 0, 0, w, h, 0, 0);
+	XFlush(d);
 }
 
 static int
@@ -216,7 +210,6 @@ nextevent(GEvent *gev)
 		switch (e.type) {
 
 		case Expose:
-			dirty = 1;
 			sync();
 			continue;
 
