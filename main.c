@@ -66,8 +66,8 @@ gev(int fd, int flag, void *unused)
 			if (!mousewin)
 				break;
 			if (e.mouse.button == GBLeft) {
-				if (e.mouse.x - mousewin->gr.x < g->actionr.w)
-				if (e.mouse.y - mousewin->gr.y < g->actionr.h) {
+				if (e.mouse.x - mousewin->rectx < g->actionr.w)
+				if (e.mouse.y - mousewin->recty < g->actionr.h) {
 					g->setpointer(GPResize);
 					resizing = 1;
 					break;

@@ -6,6 +6,11 @@
 #include "edit.h"
 #include "gui.h"
 
+#define rectx rect.x
+#define recty rect.y
+#define rectw rect.w
+#define recth rect.h
+
 typedef struct w W;
 
 #define TagInit \
@@ -28,7 +33,7 @@ struct w {
 	unsigned rev;          /* on-screen revision or 0 if dirty */
 	unsigned cu;           /* cursor offset */
 	EBuf *eb;              /* underlying buffer object */
-	GRect gr;              /* location on the screen */
+	GRect rect;            /* rectangle on the screen */
 };
 
 enum CursorLoc { CTop, CMid, CBot };

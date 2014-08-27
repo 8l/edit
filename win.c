@@ -83,9 +83,9 @@ win_new(EBuf *eb)
 		x = 0;
 		size = fwidth;
 	} else {
-		size = w->gr.w - w->gr.w/2 - g->border;
-		move(w, w->gr.x, 0, w->gr.w/2, fheight);
-		x = w->gr.x + w->gr.w + g->border;
+		size = w->rectw - w->rectw/2 - g->border;
+		move(w, w->rectx, 0, w->rectw/2, fheight);
+		x = w->rectx + w->rectw + g->border;
 		i++;
 	}
 
@@ -120,14 +120,14 @@ win_at(W *w, int x1, int y1)
 	int x;
 	unsigned p;
 
-	y1 = (y1 - g->vmargin - w->gr.y) / font.height;
+	y1 = (y1 - g->vmargin - w->recty) / font.height;
 	if (y1 < 0 || y1 >= w->nl)
 		return w->cu;
 	p = w->l[y1];
 	x = 0;
 	for (; p < w ->l[y1+1] - 1; p++) {
 		x += runewidth(buf_get(&w->eb->b, p), x);
-		if (x + w->gr.x + g->hmargin >= x1)
+		if (x + w->rectx + g->hmargin >= x1)
 			break;
 	}
 	return p;
@@ -143,10 +143,10 @@ win_which(int x1, int y1)
 	int i;
 
 	for (i=0; (w = screen[i]); i++)
-		if (x1 < w->gr.x + w->gr.w)
+		if (x1 < w->rectx + w->rectw)
 			break;
 	if (tag.visible && tag.owner == w)
-	if (y1 >= tag.win.gr.y)
+	if (y1 >= tag.win.recty)
 		return &tag.win;
 	return w;
 }
@@ -169,9 +169,9 @@ win_move(W *w, int x, int y)
 	if (y > fheight - g->vmargin)
 		y = fheight - g->vmargin;
 	if (w == &tag.win) {
-		if (y > w->gr.y)
+		if (y > w->recty)
 			tag.owner->rev = 0;
-		move(w, w->gr.x, y, w->gr.w, fheight - y);
+		move(w, w->rectx, y, w->rectw, fheight - y);
 		return;
 	}
 	for (i=j=0; screen[i+1]; i++)
@@ -181,7 +181,7 @@ win_move(W *w, int x, int y)
 			screen[i] = w1;
 			j++;
 		}
-	for (; i>0 && x < screen[i-1]->gr.x; i--) {
+	for (; i>0 && x < screen[i-1]->rectx; i--) {
 		w1 = screen[i-1];
 		screen[i-1] = screen[i];
 		screen[i] = w1;
@@ -190,15 +190,15 @@ win_move(W *w, int x, int y)
 	if (j != 0)
 		/* window swap */
 		for (i=0, x=0; (w = screen[i]); i++) {
-			move(w, x, 0, w->gr.w, fheight);
-			x += w->gr.w + g->border;
+			move(w, x, 0, w->rectw, fheight);
+			x += w->rectw + g->border;
 		}
 	else if (i != 0) {
 		/* window resize */
 		w1 = screen[i-1];
-		dx = x - w->gr.x;
-		move(w, x, 0, w->gr.w - dx, fheight);
-		move(w1, w1->gr.x, 0, w1->gr.w + dx, fheight);
+		dx = x - w->rectx;
+		move(w, x, 0, w->rectw - dx, fheight);
+		move(w1, w1->rectx, 0, w1->rectw + dx, fheight);
 	}
 }
 
@@ -212,7 +212,7 @@ win_resize_frame(int w1, int h1)
 
 	assert(w1!=0 && h1!=0);
 	for (i=0, x=0; screen[i]; i++) {
-		w = (screen[i]->gr.w * w1) / fwidth;
+		w = (screen[i]->rectw * w1) / fwidth;
 		if (!screen[i+1])
 			w = w1 - x;
 		move(screen[i], x, 0, w, h1);
@@ -233,10 +233,10 @@ win_redraw_frame()
 
 	b = (GRect){ 0, 0, g->border, fheight };
 	for (i=0; (w = screen[i]); i++) {
-		assert(!screen[i+1] || w->gr.x + w->gr.w + g->border == screen[i+1]->gr.x);
+		assert(!screen[i+1] || w->rectx + w->rectw + g->border == screen[i+1]->rectx);
 		if (dirty(w)) {
 			if (screen[i+1]) {
-				b.x = w->gr.x + w->gr.w;
+				b.x = w->rectx + w->rectw;
 				g->drawrect(&b, 0, 0, b.w, b.h, GGray);
 			}
 			draw(w, GPaleYellow);
@@ -245,7 +245,7 @@ win_redraw_frame()
 		}
 	}
 	if (tag.visible && dirty(&tag.win)) {
-		b = tag.win.gr;
+		b = tag.win.rect;
 		b.y -= g->border;
 		g->drawrect(&b, 0, 0, b.w, g->border, GGray);
 		draw(&tag.win, GPaleGreen);
@@ -334,7 +334,7 @@ win_tag_toggle(W *w)
 
 	tag.visible = 1;
 	tag.owner = w;
-	move(&tag.win, w->gr.x, w->gr.h - w->gr.h/TagRatio, w->gr.w, w->gr.h/TagRatio);
+	move(&tag.win, w->rectx, w->recth - w->recth/TagRatio, w->rectw, w->recth/TagRatio);
 	w->rev = 0;
 
 	return &tag.win;
@@ -418,8 +418,8 @@ static void
 flushfrag(struct frag *f, W *w, int x, int y, int sel)
 {
 	if (sel)
-		g->drawrect(&w->gr, f->x, f->y-font.ascent, f->w, font.height, GPaleBlue);
-	g->drawtext(&w->gr, f->b, f->n, f->x, f->y, GBlack);
+		g->drawrect(&w->rect, f->x, f->y-font.ascent, f->w, font.height, GPaleBlue);
+	g->drawtext(&w->rect, f->b, f->n, f->x, f->y, GBlack);
 	f->n = 0;
 	f->x = x;
 	f->y = y;
@@ -439,7 +439,7 @@ draw(W *w, GColor bg)
 	if (s0 == -1u || s1 == -1u)
 		s0 = s1 = 0;
 
-	g->drawrect(&w->gr, 0, 0, w->gr.w, w->gr.h, bg);
+	g->drawrect(&w->rect, 0, 0, w->rectw, w->recth, bg);
 
 	sel = 0;
 	cw = 0;
@@ -483,8 +483,8 @@ draw(W *w, GColor bg)
 	}
 
 	if (cw != 0)
-		g->drawrect(&w->gr, cx, cy, cw, font.height, GXBlack);
-	g->decorate(&w->gr, w->eb->path && w->eb->frev != eb_revision(w->eb), GGray);
+		g->drawrect(&w->rect, cx, cy, cw, font.height, GXBlack);
+	g->decorate(&w->rect, w->eb->path && w->eb->frev != eb_revision(w->eb), GGray);
 	w->rev = eb_revision(w->eb);
 }
 
@@ -502,10 +502,10 @@ move(W *pw, int x, int y, int w, int h)
 		pw->nl = 1;
 	assert(pw->nl < MaxHeight);
 	if (tag.visible && tag.owner == pw) {
-		tagh = (tag.win.gr.h * h) / pw->gr.h;
+		tagh = (tag.win.recth * h) / pw->recth;
 		move(&tag.win, x, h - tagh, w, tagh);
 	}
-	pw->gr = (GRect){x, y, w, h};
+	pw->rect = (GRect){x, y, w, h};
 	win_update(pw);
 }
 
@@ -552,7 +552,7 @@ lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li)
 		r = buf_get(&w->eb->b, off);
 		rw = runewidth(r, x);
 
-		if (g->hmargin+x+rw > w->gr.w)
+		if (g->hmargin+x+rw > w->rectw)
 		if (x != 0) { /* force progress */
 			if (pushoff(li, off, lim != -1u) == 0)
 				break;
