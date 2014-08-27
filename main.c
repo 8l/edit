@@ -12,7 +12,7 @@
 #include "gui.h"
 #include "win.h"
 
-enum { RedrawTime = 15 /* in milliseconds */ };
+enum { RedrawDelay = 15 /* in milliseconds */ };
 
 W *curwin;
 int scrolling;
@@ -30,11 +30,9 @@ die(char *m)
 static void
 redraw()
 {
-	if (needsredraw) {
-		win_redraw_frame();
-		needsredraw = 0;
-	}
-	ev_alarm(RedrawTime, redraw);
+	assert(needsredraw);
+	win_redraw_frame();
+	needsredraw = 0;
 }
 
 static int
@@ -114,7 +112,10 @@ gev(int fd, int flag, void *unused)
 		curwin->cu = pos;
 		curwin->rev = 0;
 	}
-	needsredraw = 1;
+	if (!needsredraw) {
+		ev_alarm(RedrawDelay, redraw);
+		needsredraw = 1;
+	}
 	return 0;
 }
 
@@ -132,7 +133,6 @@ main(int ac, char *av[])
 	if (ac > 1)
 		ex_get(eb, av[1]);
 	curwin = win_new(eb);
-	ev_alarm(RedrawTime, redraw);
 	gev(0, ERead, 0);
 	ev_loop();
 }
