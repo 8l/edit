@@ -235,12 +235,13 @@ win_redraw_frame()
 	W *w;
 	int i;
 
+	b = (GRect){ 0, 0, g->border, fheight };
 	for (i=0; (w = screen[i]); i++) {
 		assert(!screen[i+1] || w->gr.x + w->gr.w + g->border == screen[i+1]->gr.x);
 		if (dirty(w)) {
 			if (screen[i+1]) {
-				b = (GRect){ w->gr.x + w->gr.w, 0, g->border, fheight };
-				g->drawrect(&b, 0, 0,  g->border, b.h, GGray);
+				b.x = w->gr.x + w->gr.w;
+				g->drawrect(&b, 0, 0, b.w, b.h, GGray);
 			}
 			draw(w, GPaleYellow);
 			if (tag.owner == w)
