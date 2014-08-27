@@ -12,8 +12,11 @@
 #include "gui.h"
 #include "win.h"
 
+enum { RedrawTime = 15 /* in milliseconds */ };
+
 W *curwin;
 int scrolling;
+int needsredraw;
 
 static struct gui *g;
 
@@ -22,6 +25,16 @@ die(char *m)
 {
 	fprintf(stderr, "dying, %s\n", m);
 	abort();
+}
+
+static void
+redraw()
+{
+	if (needsredraw) {
+		win_redraw_frame();
+		needsredraw = 0;
+	}
+	ev_alarm(RedrawTime, redraw);
 }
 
 static int
@@ -35,7 +48,6 @@ gev(int fd, int flag, void *unused)
 
 	(void) fd;
 	assert(flag == ERead && unused == 0);
-
 	while (g->nextevent(&e) != 0) {
 		switch (e.type) {
 		case GResize:
@@ -102,8 +114,7 @@ gev(int fd, int flag, void *unused)
 		curwin->cu = pos;
 		curwin->rev = 0;
 	}
-
-	win_redraw_frame();
+	needsredraw = 1;
 	return 0;
 }
 
@@ -117,32 +128,11 @@ main(int ac, char *av[])
 	guifd = g->init();
 	ev_register((Evnt){guifd, ERead, gev, 0});
 	win_init(g);
-
 	eb = eb_new();
 	if (ac > 1)
 		ex_get(eb, av[1]);
 	curwin = win_new(eb);
-
+	ev_alarm(RedrawTime, redraw);
 	gev(0, ERead, 0);
 	ev_loop();
 }
-
-#if 0
-void
-dump(Buf *b)
-{
-	Page *p = b->p;
-
-	for (; p; p = p->n) {
-		Rune *r;
-
-		printf("New page:\n-----\n  len: %d\n  nl: %d\n\n", p->len, p->nl);
-		for (r=p->buf; r < p->hbeg; r++)
-			putchar(*r);
-		printf("\n-- HOLE\n");
-		for (r=p->hbeg + (PageLen-p->len); r < &p->buf[PageLen]; r++)
-			putchar(*r);
-		printf("\n---- END OF PAGE\n");
-	}
-}
-#endif
