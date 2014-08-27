@@ -11,37 +11,49 @@ void die(char *);
 int exiting;
 
 #define tgt(a, b) \
-	((a)->tv_sec == (b)->tv_sec ? \
-	(a)->tv_usec > (b)->tv_usec : \
-	(a)->tv_sec > (b)->tv_sec)
+	((a).tv_sec == (b).tv_sec ? \
+	(a).tv_usec > (b).tv_usec : \
+	(a).tv_sec > (b).tv_sec)
 
+typedef struct alarm Alarm;
+struct alarm {
+	struct timeval t;
+	void (*f)();
+};
+
+static void pushalarm(Alarm);
 static void popalrm(void);
 
-static Alrm *ah[MaxAlrms + 1];
+static Alarm ah[MaxAlarms + 1];
 static int na;
 static Evnt *elist;
 static int ne;
 static struct timeval curtime;
 
-int
-ev_alarm(Alrm a)
-{
-	Alrm *a1, *t;
-	int i, j;
 
-	if (na >= MaxAlrms)
+void
+ev_time(struct timeval *t)
+{
+	if (!curtime.tv_sec)
+		gettimeofday(&curtime, 0);
+	*t = curtime;
+}
+
+int
+ev_alarm(int ms, void (*f)())
+{
+	Alarm a;
+
+	if (na >= MaxAlarms)
 		return 1;
-	a1 = malloc(sizeof (Alrm));
-	assert(a1);
-	*a1 = a;
-	i = ++na;
-	ah[i] = a1;
-	while ((j = i / 2) && tgt(&ah[j]->t, &ah[i]->t)) {
-		t = ah[j];
-		ah[j] = ah[i];
-		ah[i] = t;
-		i = j;
+	a.f = f;
+	ev_time(&a.t);
+	a.t.tv_usec += ms * 1000;
+	if (a.t.tv_usec >= 1000000) {
+		a.t.tv_sec++;
+		a.t.tv_usec -= 1000000;
 	}
+	pushalarm(a);
 	return 0;
 }
 
@@ -55,17 +67,10 @@ ev_register(Evnt e)
 }
 
 void
-ev_time(struct timeval *t)
-{
-	assert(curtime.tv_sec);
-	*t = curtime;
-}
-
-void
 ev_loop()
 {
 	struct timeval tv;
-	Alrm *a;
+	Alarm a;
 	fd_set rfds, wfds;
 	int i, maxfd, flags;
 
@@ -83,11 +88,11 @@ ev_loop()
 		}
 		if (na) {
 			gettimeofday(&tv, 0);
-			if (!tgt(&ah[1]->t, &tv))
+			if (!tgt(ah[1].t, tv))
 				tv = (struct timeval){0, 0};
 			else {
-				tv.tv_sec = ah[1]->t.tv_sec - tv.tv_sec;
-				tv.tv_usec = ah[1]->t.tv_usec - tv.tv_usec;
+				tv.tv_sec = ah[1].t.tv_sec - tv.tv_sec;
+				tv.tv_usec = ah[1].t.tv_usec - tv.tv_usec;
 				if (tv.tv_usec < 0) {
 					tv.tv_sec--;
 					tv.tv_usec += 1000000;
@@ -101,11 +106,10 @@ ev_loop()
 			die("select error");
 		}
 		gettimeofday(&curtime, 0);
-		while (na && !tgt(&ah[1]->t, &curtime)) {
+		while (na && !tgt(ah[1].t, curtime)) {
 			a = ah[1];
 			popalrm();
-			a->f(&a->t, a->p);
-			free(a);
+			a.f();
 		}
 		for (i=0; i < ne;) {
 			flags = 0;
@@ -128,20 +132,35 @@ ev_loop()
 }
 
 
-/* clear the first alarm out of the heap */
+static void
+pushalarm(Alarm a)
+{
+	Alarm t;
+	int i, j;
+
+	i = ++na;
+	ah[i] = a;
+	while ((j = i / 2) && tgt(ah[j].t, ah[i].t)) {
+		t = ah[j];
+		ah[j] = ah[i];
+		ah[i] = t;
+		i = j;
+	}
+}
+
 static void
 popalrm()
 {
-	Alrm *t;
+	Alarm t;
 	int i, j;
 
 	assert(na);
 	i = 1;
 	ah[i] = ah[na--];
 	while ((j = 2 * i) <= na) {
-		if (tgt(&ah[j]->t, &ah[j+1]->t))
+		if (tgt(ah[j].t, ah[j+1].t))
 			j++;
-		if (!tgt(&ah[i]->t, &ah[j]->t))
+		if (!tgt(ah[i].t, ah[j].t))
 			return;
 		t = ah[j];
 		ah[j] = ah[i];

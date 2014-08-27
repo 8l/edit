@@ -3,17 +3,10 @@
 
 #include <sys/time.h>
 
-enum {
-	MaxAlrms = 15, /* max number of concurrent alarms */
-};
-
-typedef struct alrm Alrm;
 typedef struct evnt Evnt;
 
-struct alrm {
-	struct timeval t;
-	void (*f)(struct timeval *, void *);
-	void *p;
+enum {
+	MaxAlarms = 15, /* max number of concurrent alarms */
 };
 
 enum {
@@ -28,7 +21,7 @@ struct evnt {
 	void *p;
 };
 
-int ev_alarm(Alrm);
+int ev_alarm(int, void (*)(void));
 void ev_register(Evnt);
 void ev_loop(void);
 
