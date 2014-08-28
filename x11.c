@@ -204,7 +204,7 @@ nextevent(GEvent *gev)
 {
 	XEvent e;
 
-	while (XEventsQueued(d, QueuedAfterFlush)) {
+	while (XPending(d)) {
 
 		XNextEvent(d, &e);
 		switch (e.type) {
