@@ -28,11 +28,15 @@ gev(int fd, int flag, void *unused)
 	static unsigned selbeg;
 	static W *mousewin;
 	static int resizing;
-	unsigned pos, ne;
+	unsigned pos;
 	GEvent e;
 
 	(void)fd; (void)flag; (void)unused;
-	for (ne = 0; g->nextevent(&e) != 0; ne |= 1) {
+	while (g->nextevent(&e)) {
+		if (!needsredraw) {
+			ev_alarm(RedrawDelay, redraw);
+			needsredraw = 1;
+		}
 		switch (e.type) {
 		case GResize:
 			win_resize_frame(e.resize.width, e.resize.height);
@@ -40,11 +44,10 @@ gev(int fd, int flag, void *unused)
 		case GKey:
 			cmd_parse(e.key);
 			win_update(curwin);
-			if (!scrolling) {
-				if (curwin->cu >= curwin->l[curwin->nl]
-				|| curwin->cu < curwin->l[0])
-					win_show_cursor(curwin, CMid);
-			}
+			if (!scrolling)
+			if (curwin->cu >= curwin->l[curwin->nl]
+			|| curwin->cu < curwin->l[0])
+				win_show_cursor(curwin, CMid);
 			scrolling = 0;
 			break;
 		case GMouseDown:
@@ -97,10 +100,6 @@ gev(int fd, int flag, void *unused)
 	Setcursor:
 		curwin->cu = pos;
 		curwin->rev = 0;
-	}
-	if (ne && !needsredraw) {
-		ev_alarm(RedrawDelay, redraw);
-		needsredraw = 1;
 	}
 	return 0;
 }
