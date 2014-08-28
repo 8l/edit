@@ -22,7 +22,7 @@ struct alarm {
 };
 
 static void pushalarm(Alarm);
-static void popalrm(void);
+static void popalarm(void);
 
 static Alarm ah[MaxAlarms + 1];
 static int na;
@@ -108,7 +108,7 @@ ev_loop()
 		gettimeofday(&curtime, 0);
 		while (na && !tgt(ah[1].t, curtime)) {
 			a = ah[1];
-			popalrm();
+			popalarm();
 			a.f();
 		}
 		for (i=0; i < ne;) {
@@ -149,7 +149,7 @@ pushalarm(Alarm a)
 }
 
 static void
-popalrm()
+popalarm()
 {
 	Alarm t;
 	int i, j;
