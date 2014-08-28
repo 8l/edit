@@ -30,10 +30,11 @@ enum {
 struct w {
 	unsigned l[MaxHeight]; /* line start offsets */
 	int nl;                /* current number of lines */
-	unsigned rev;          /* on-screen revision or 0 if dirty */
+	unsigned rev;          /* buffer revision used for line offsets */
 	unsigned cu;           /* cursor offset */
 	EBuf *eb;              /* underlying buffer object */
 	GRect rect;            /* rectangle on the screen */
+	int dirty;             /* force redraw */
 };
 
 enum CursorLoc { CTop, CMid, CBot };

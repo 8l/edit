@@ -170,7 +170,7 @@ win_move(W *w, int x, int y)
 		y = fheight - g->vmargin;
 	if (w == &tag.win) {
 		if (y > w->recty)
-			tag.owner->rev = 0;
+			tag.owner->dirty = 1;
 		move(w, w->rectx, y, w->rectw, fheight - y);
 		return;
 	}
@@ -241,7 +241,7 @@ win_redraw_frame()
 			}
 			draw(w, GPaleYellow);
 			if (tag.owner == w)
-				tag.win.rev = 0;
+				tag.win.dirty = 1;
 		}
 	}
 	if (tag.visible && dirty(&tag.win)) {
@@ -327,7 +327,7 @@ win_tag_toggle(W *w)
 {
 	if (tag.visible) {
 		tag.visible = 0;
-		tag.owner->rev = 0;
+		tag.owner->dirty = 1;
 		if (w == &tag.win)
 			return tag.owner;
 	}
@@ -335,7 +335,7 @@ win_tag_toggle(W *w)
 	tag.visible = 1;
 	tag.owner = w;
 	move(&tag.win, w->rectx, w->recth - w->recth/TagRatio, w->rectw, w->recth/TagRatio);
-	w->rev = 0;
+	w->dirty = 1;
 
 	return &tag.win;
 }
@@ -369,7 +369,8 @@ win_update(W *w)
 		for (; top<li.len; top++, l++)
 			w->l[l] = li.sl[(li.beg + top) % RingSize];
 	}
-	w->rev = 0;
+	w->rev = eb_revision(w->eb);
+	w->dirty = 1;
 }
 
 /* static functions */
@@ -377,9 +378,9 @@ win_update(W *w)
 static int
 dirty(W *w)
 {
-	if (w->rev && w->rev != eb_revision(w->eb))
+	if (w->rev != eb_revision(w->eb))
 		win_update(w);
-	return !w->rev;
+	return w->dirty;
 }
 
 /* runewidth - returns the width of a given
@@ -485,7 +486,7 @@ draw(W *w, GColor bg)
 	if (cw != 0)
 		g->drawrect(&w->rect, cx, cy, cw, font.height, GXBlack);
 	g->decorate(&w->rect, w->eb->path && w->eb->frev != eb_revision(w->eb), GGray);
-	w->rev = eb_revision(w->eb);
+	w->dirty = 0;
 }
 
 /* move - Resize and recompute appearance

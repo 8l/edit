@@ -99,7 +99,7 @@ gev(int fd, int flag, void *unused)
 		continue;
 	Setcursor:
 		curwin->cu = pos;
-		curwin->rev = 0;
+		curwin->dirty = 1;
 	}
 	return 0;
 }
