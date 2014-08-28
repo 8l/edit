@@ -12,41 +12,27 @@
 #include "gui.h"
 #include "win.h"
 
-enum { RedrawDelay = 15 /* in milliseconds */ };
-
 W *curwin;
 int scrolling;
-int needsredraw;
+
+static void redraw(void);
 
 static struct gui *g;
+static int needsredraw;
 
-void
-die(char *m)
-{
-	fprintf(stderr, "dying, %s\n", m);
-	abort();
-}
-
-static void
-redraw()
-{
-	assert(needsredraw);
-	win_redraw_frame();
-	needsredraw = 0;
-}
 
 static int
 gev(int fd, int flag, void *unused)
 {
+	enum { RedrawDelay = 16 /* in milliseconds */ };
 	static unsigned selbeg;
 	static W *mousewin;
 	static int resizing;
-	unsigned pos;
+	unsigned pos, ne;
 	GEvent e;
 
-	(void) fd;
-	assert(flag == ERead && unused == 0);
-	while (g->nextevent(&e) != 0) {
+	(void)fd; (void)flag; (void)unused;
+	for (ne = 0; g->nextevent(&e) != 0; ne |= 1) {
 		switch (e.type) {
 		case GResize:
 			win_resize_frame(e.resize.width, e.resize.height);
@@ -112,11 +98,20 @@ gev(int fd, int flag, void *unused)
 		curwin->cu = pos;
 		curwin->rev = 0;
 	}
-	if (!needsredraw) {
+	if (ne && !needsredraw) {
 		ev_alarm(RedrawDelay, redraw);
 		needsredraw = 1;
 	}
 	return 0;
+}
+
+static void
+redraw()
+{
+	assert(needsredraw);
+	win_redraw_frame();
+	needsredraw = 0;
+	gev(0, 0, 0);
 }
 
 int
@@ -133,6 +128,13 @@ main(int ac, char *av[])
 	if (ac > 1)
 		ex_get(eb, av[1]);
 	curwin = win_new(eb);
-	gev(0, ERead, 0);
+	gev(0, 0, 0);
 	ev_loop();
+}
+
+void
+die(char *m)
+{
+	fprintf(stderr, "dying, %s\n", m);
+	abort();
 }
