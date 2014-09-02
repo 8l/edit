@@ -18,6 +18,7 @@
 #include "exec.h"
 #include "evnt.h"
 
+extern W *curwin;
 void die(char *);
 
 typedef struct ecmd ECmd;
@@ -50,7 +51,6 @@ static ECmd etab[] = {
 int
 ex_run(unsigned p0)
 {
-	extern W *curwin;
 	unsigned p1;
 	ECmd *e;
 
@@ -154,7 +154,7 @@ ex_put(EBuf *eb, char *file)
 			return 1;
 		}
 	}
-	fd = open(file, O_TRUNC|O_WRONLY|O_CREAT);
+	fd = open(file, O_TRUNC|O_WRONLY|O_CREAT, 0644);
 	if (fd == -1) {
 		errstr = "cannot open file";
 		return 1;
@@ -320,8 +320,6 @@ look(W *w, EBuf *eb, unsigned p0)
 static int
 new(W *w, EBuf *eb, unsigned pos)
 {
-	extern W *curwin;
-
 	(void)eb; (void)pos;
 	w = win_new(eb_new());
 	if (w)
