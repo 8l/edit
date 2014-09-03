@@ -15,11 +15,17 @@
 W *curwin;
 int scrolling;
 
-static void redraw(void);
-
 static struct gui *g;
 static int needsredraw;
 
+
+static void
+redraw()
+{
+	assert(needsredraw);
+	win_redraw_frame();
+	needsredraw = 0;
+}
 
 static int
 gev(int fd, int flag, void *unused)
@@ -102,15 +108,6 @@ gev(int fd, int flag, void *unused)
 		curwin->dirty = 1;
 	}
 	return 0;
-}
-
-static void
-redraw()
-{
-	assert(needsredraw);
-	win_redraw_frame();
-	needsredraw = 0;
-	gev(0, 0, 0);
 }
 
 int

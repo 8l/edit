@@ -196,6 +196,7 @@ static void
 sync()
 {
 	XCopyArea(d, pbuf, win, gc, 0, 0, w, h, 0, 0);
+	XFlush(d);
 }
 
 static int
