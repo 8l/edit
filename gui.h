@@ -1,9 +1,3 @@
-#ifndef GUI_H
-#define GUI_H
-/* GUI module definition */
-
-#include "unicode.h"
-
 typedef struct gcolor   GColor;
 typedef struct gfont    GFont;
 typedef struct grect    GRect;
@@ -117,5 +111,3 @@ struct gui {
 
 /* Available gui modules */
 extern struct gui gui_x11;
-
-#endif /* ndef GUI_H */

@@ -6,6 +6,7 @@
 
 #include "unicode.h"
 #include "buf.h"
+#include "edit.h"
 #include "gui.h"
 #include "win.h"
 

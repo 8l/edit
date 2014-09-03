@@ -5,12 +5,14 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "unicode.h"
 #include "cmd.h"
+#include "buf.h"
 #include "edit.h"
-#include "evnt.h"
-#include "exec.h"
 #include "gui.h"
 #include "win.h"
+#include "exec.h"
+#include "evnt.h"
 
 W *curwin;
 int scrolling;

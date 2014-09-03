@@ -36,9 +36,11 @@ purposes we also include \.{stdio.h}.
 #include <stdio.h>
 #include <stdlib.h>
 #include "unicode.h"
+#include "buf.h"
 #include "edit.h"
-#include "exec.h"
+#include "gui.h"
 #include "win.h"
+#include "exec.h"
 #include "cmd.h"
 
 @ The \.{vi} editor is modal so we must keep track of the current

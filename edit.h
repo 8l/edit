@@ -1,10 +1,4 @@
-#ifndef EDIT_H
-#define EDIT_H
-
-#include <time.h>
-
-#include "unicode.h"
-#include "buf.h"
+#include <sys/time.h>
 
 /* special marks */
 #define SelBeg ((Rune) 'i')	/* selection start */
@@ -45,5 +39,3 @@ void eb_setmark(EBuf *, Rune, unsigned);
 unsigned eb_getmark(EBuf *, Rune);
 unsigned eb_look(EBuf *, unsigned, Rune *, unsigned);
 void eb_write(EBuf *, int);
-
-#endif /* ndef EDIT_H */

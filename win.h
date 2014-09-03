@@ -1,11 +1,3 @@
-#ifndef WIN_H
-#define WIN_H
-
-#include "unicode.h"
-#include "buf.h"
-#include "edit.h"
-#include "gui.h"
-
 #define rectx rect.x
 #define recty rect.y
 #define rectw rect.w
@@ -52,5 +44,3 @@ void win_show_cursor(W *, enum CursorLoc);
 W *win_tag_toggle(W *);
 W *win_text(W *);
 void win_update(W *);
-
-#endif /* ndef WIN_H */

@@ -13,7 +13,9 @@
 #include <unistd.h>
 
 #include "unicode.h"
+#include "buf.h"
 #include "edit.h"
+#include "gui.h"
 #include "win.h"
 #include "exec.h"
 #include "evnt.h"

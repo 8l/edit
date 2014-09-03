@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "buf.h"
 #include "unicode.h"
+#include "buf.h"
 
 static void del(Buf *, unsigned);
 static Rune *hend(Page *);

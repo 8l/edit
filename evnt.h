@@ -1,8 +1,3 @@
-#ifndef EVNT_H
-#define EVNT_H
-
-#include <sys/time.h>
-
 typedef struct evnt Evnt;
 
 enum {
@@ -24,5 +19,3 @@ struct evnt {
 int ev_alarm(int, void (*)(void));
 void ev_register(Evnt);
 void ev_loop(void);
-
-#endif /* ndef EVNT_H */

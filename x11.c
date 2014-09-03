@@ -7,6 +7,7 @@
 #include <X11/Xft/Xft.h>
 #include <X11/cursorfont.h>
 
+#include "unicode.h"
 #include "gui.h"
 
 void die(char *);

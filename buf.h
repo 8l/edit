@@ -1,8 +1,4 @@
-#ifndef BUF_H
-#define BUF_H
 /* Buffer management functions */
-
-#include "unicode.h"
 
 typedef struct page Page;
 typedef struct buf  Buf;
@@ -37,5 +33,3 @@ void buf_getlc(Buf *, unsigned, int *, int *);
 unsigned buf_bol(Buf *, unsigned);
 unsigned buf_eol(Buf *, unsigned);
 unsigned buf_setlc(Buf *, int, int);
-
-#endif /* ndef BUF_H */
