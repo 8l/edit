@@ -70,14 +70,12 @@ win_new(EBuf *eb)
 	int i, x, size;
 
 	assert(eb);
-
 	for (w1=wins;; w1++) {
 		if (w1 - wins >= MaxWins)
 			return 0;
 		if (!w1->eb)
 			break;
 	}
-
 	for (i=0; (w = screen[i]) && screen[i+1]; i++)
 		;
 	if (!w) {
@@ -89,27 +87,40 @@ win_new(EBuf *eb)
 		x = w->rectx + w->rectw + g->border;
 		i++;
 	}
-
 	w1->eb = eb;
 	move(w1, x, 0, size, fheight);
 	screen[i] = w1;
 	screen[i+1] = 0;
-
 	return w1;
 }
 
 /* win_delete - Delete a window created by win_new.
+ * An adjacent window is returned.
  */
-void
+W *
 win_delete(W *w)
 {
-	assert(w >= wins);
-	assert(w < wins+MaxWins);
+	W *w1, *sw;
+	int rx;
 
+	if (!screen[1])
+		return 0;
+	for (sw = screen; *sw != w; sw++)
+		assert(*sw);
+	if (sw == screen) {
+		w1 = sw[1];
+		rx = 0;
+	} else {
+		w1 = sw[-1];
+		rx = w1->rectx;
+	}
+	move(w1, rx, 0, w->rectw+g->border+w1->rectw, fheight);
 	memset(w, 0, sizeof(W));
 	w->eb = 0;
-	// FIXME, create an invariant such that win_new can be simplified
-	// also, do not delete if only one window is left
+	memmove(sw, sw+1, (MaxWins-(sw-screen))*sizeof(W*));
+	if (tag.visible && tag.owner == w)
+		tag.visible = 0;
+	return w1;
 }
 
 /* win_at - Return the buffer offset at the specified location,
@@ -177,9 +188,8 @@ win_move(W *w, int x, int y)
 	}
 	for (i=j=0; screen[i+1]; i++)
 		if (screen[i] == w) {
-			w1 = screen[i+1];
-			screen[i+1] = screen[i];
-			screen[i] = w1;
+			screen[i] = screen[i+1];
+			screen[i+1] = w;
 			j++;
 		}
 	for (; i>0 && x < screen[i-1]->rectx; i--) {

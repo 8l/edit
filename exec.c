@@ -36,6 +36,7 @@ static int put(W *, EBuf *, unsigned);
 static int look(W *, EBuf *, unsigned);
 static int run(W *, EBuf *, unsigned);
 static int new(W *, EBuf *, unsigned);
+static int del(W *, EBuf *, unsigned);
 
 static char *errstr;
 static ECmd etab[] = {
@@ -43,6 +44,7 @@ static ECmd etab[] = {
 	{ "Put", put },
 	{ "Look", look },
 	{ "New", new },
+	{ "Del", del },
 	{ 0, run },
 };
 
@@ -320,12 +322,24 @@ look(W *w, EBuf *eb, unsigned p0)
 }
 
 static int
-new(W *w, EBuf *eb, unsigned pos)
+new(W *w, EBuf *eb, unsigned p0)
 {
-	(void)eb; (void)pos;
 	w = win_new(eb_new());
 	if (w)
 		curwin = win_tag_toggle(w);
+	else
+		err(eb, p0, "no more windows");
+	return 0;
+}
+
+static int
+del(W *w, EBuf *eb, unsigned p0)
+{
+	w = win_delete(w);
+	if (w)
+		curwin = w;
+	else
+		err(eb, p0, "last window");
 	return 0;
 }
 
