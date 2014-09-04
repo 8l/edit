@@ -24,12 +24,14 @@ struct ebuf {
 	char *path;	/* file path */
 	time_t ftime;   /* last mtime when written/read */
 	unsigned frev;  /* last revision written */
+	int refs;       /* ref count, if <0 zombie buffer */
 };
 
 EBuf *eb_new(void);
-void eb_del(EBuf *, unsigned, unsigned);
+void eb_kill(EBuf *);
 void eb_clr(EBuf *, int);
 unsigned eb_revision(EBuf *);
+void eb_del(EBuf *, unsigned, unsigned);
 void eb_ins(EBuf *, unsigned, Rune);
 int eb_ins_utf8(EBuf *, unsigned, unsigned char *, int);
 void eb_commit(EBuf *);

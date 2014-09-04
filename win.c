@@ -94,13 +94,13 @@ win_new(EBuf *eb)
 	return w1;
 }
 
-/* win_delete - Delete a window created by win_new.
+/* win_kill - Delete a window created by win_new.
  * An adjacent window is returned.
  */
 W *
-win_delete(W *w)
+win_kill(W *w)
 {
-	W *w1, *sw;
+	W *w1, **sw;
 	int rx;
 
 	if (!screen[1])
@@ -115,6 +115,7 @@ win_delete(W *w)
 		rx = w1->rectx;
 	}
 	move(w1, rx, 0, w->rectw+g->border+w1->rectw, fheight);
+	eb_kill(w->eb);
 	memset(w, 0, sizeof(W));
 	w->eb = 0;
 	memmove(sw, sw+1, (MaxWins-(sw-screen))*sizeof(W*));

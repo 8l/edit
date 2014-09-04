@@ -335,7 +335,7 @@ new(W *w, EBuf *eb, unsigned p0)
 static int
 del(W *w, EBuf *eb, unsigned p0)
 {
-	w = win_delete(w);
+	w = win_kill(w);
 	if (w)
 		curwin = w;
 	else
@@ -363,13 +363,26 @@ runev(int fd, int flag, void *data)
 	unsigned char buf[2048], *p;
 	Rune r;
 
-	rn = data; /* XXX rn->eb can be invalid */
+	rn = data;
+	n = rn->eb->refs;
+	if (n < 0) {
+		/* zombie buffer */
+		rn->eb->refs++;
+/* puts("tick"); */
+		if (n == -1)
+/* puts("tock!"), */
+			free(rn->eb);
+		rn->eb = 0;
+		close(fd);
+		goto Reset;
+	}
 	if (flag & ERead) {
 		assert(rn->eb);
 		memcpy(buf, rn->in, rn->nin);
 		n = read(fd, &buf[rn->nin], sizeof buf - rn->nin);
 		if (n <= 0) {
 			close(fd);
+			rn->eb->refs--;
 			rn->eb = 0;
 			goto Reset;
 		}
@@ -412,19 +425,6 @@ run(W *w, EBuf *eb, unsigned p0)
 	char *argv[4], *cmd, ctyp;
 	int pin[2], pout[2];
 	Run *r;
-
-	/* ***
-	clear (and possibly delete) selection,
-	get the "insertion" position and set a mark for it in the
-	edit buffer (Acme does not do this, it just stores an offset)
-
-	what happens when eb is deleted/changed
-	during the command execution?
-	+	refcount ebs and make eb_free free the
-			data and have eb contain simply the refcount
-	+	when a dummy eb is detected in the callback,
-			just abort the IO operation
-	*** */
 
 	eol = buf_eol(&eb->b, p0);
 	p1 = 1 + skipb(&eb->b, eol-1, -1);
@@ -487,6 +487,7 @@ run(W *w, EBuf *eb, unsigned p0)
 	default:
 		abort();
 	}
+	r->eb->refs++;
 	if (ctyp != 0)
 	if (s0 != s1) {
 		eb_setmark(w->eb, SelBeg, -1u); /* clear selection */

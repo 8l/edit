@@ -190,7 +190,35 @@ eb_new()
 	eb->redo = log_new();
 	eb->ml = 0;
 	eb->path = 0;
+	eb->refs = 0;
 	return eb;
+}
+
+/* eb_kill - Free all the memory used by [eb].  If the
+ * refcount is non-zero, it switches its sign and does
+ * not free the memory used by [eb].  Otherwise, all
+ * the memory is freed.
+ */
+void
+eb_kill(EBuf *eb)
+{
+	Mark *m;
+
+	assert(eb->refs >= 0);
+	eb->refs = -eb->refs;
+	buf_clr(&eb->b);
+	log_clr(eb->undo);
+	log_clr(eb->redo);
+	while ((m=eb->ml)) {
+		eb->ml = m->next;
+		free(m);
+	}
+	free(eb->b.p);
+	free(eb->undo);
+	free(eb->redo);
+	free(eb->path);
+	if (eb->refs == 0)
+		free(eb);
 }
 
 /* eb_clr - Reset the buffer contents and marks and read
