@@ -124,8 +124,8 @@ utf8_decode_rune(Rune *r, const unsigned char *str, int len)
 	c = *str++;
 
 	if (c < 0x80) {
-		read = 1;
-		ucs = c;
+		*r = c;
+		return 1;
 	}
 	else if (c < 0xc0) {
 		goto fail;
