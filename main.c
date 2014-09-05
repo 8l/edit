@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <ctype.h>
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,7 +20,14 @@ int scrolling;
 
 static struct gui *g;
 static int needsredraw;
+static int clicks;
 
+
+static int
+risword(Rune r)
+{
+	return risascii(r) && (isalnum(r) || r == '_');
+}
 
 static void
 redraw()
@@ -29,15 +37,25 @@ redraw()
 	needsredraw = 0;
 }
 
+static void
+resetclicks()
+{
+	clicks = 0;
+}
+
 static int
 gev(int fd, int flag, void *unused)
 {
-	enum { RedrawDelay = 16 /* in milliseconds */ };
+	enum {
+		RedrawDelay = 16, /* in milliseconds */
+		DoubleClick = 200,
+	};
 	static unsigned selbeg;
 	static W *mousewin;
 	static int resizing;
-	unsigned pos;
+	unsigned p0, p1;
 	GEvent e;
+	Buf *b;
 
 	(void)fd; (void)flag; (void)unused;
 	while (g->nextevent(&e)) {
@@ -70,8 +88,20 @@ gev(int fd, int flag, void *unused)
 					break;
 				}
 				curwin = mousewin;
-				pos = win_at(mousewin, e.mouse.x, e.mouse.y);
-				selbeg = pos;
+				p0 = win_at(mousewin, e.mouse.x, e.mouse.y);
+				selbeg = p0;
+				ev_alarm(DoubleClick, resetclicks);
+				clicks++;
+				if (clicks > 1) {
+					p1 = p0 + 1;
+					b = &curwin->eb->b;
+					while (p0 && risword(buf_get(b, p0-1)))
+						p0--;
+					while (risword(buf_get(b, p1)))
+						p1++;
+					eb_setmark(curwin->eb, SelBeg, p0);
+					eb_setmark(curwin->eb, SelEnd, p1);
+				}
 				goto Setcursor;
 			} else if (e.mouse.button == GBWheelUp) {
 				win_scroll(mousewin, -4);
@@ -89,11 +119,10 @@ gev(int fd, int flag, void *unused)
 		case GMouseSelect:
 			if (resizing)
 				break;
-			assert(selbeg != -1u);
-			pos = win_at(mousewin, e.mouse.x, e.mouse.y);
-			if (pos != selbeg) {
+			p0 = win_at(mousewin, e.mouse.x, e.mouse.y);
+			if (p0 != selbeg) {
 				eb_setmark(curwin->eb, SelBeg, selbeg);
-				eb_setmark(curwin->eb, SelEnd, pos);
+				eb_setmark(curwin->eb, SelEnd, p0);
 			}
 			goto Setcursor;
 		default:
@@ -106,7 +135,7 @@ gev(int fd, int flag, void *unused)
 			curwin->cu = curwin->l[0];
 		continue;
 	Setcursor:
-		curwin->cu = pos;
+		curwin->cu = p0;
 		curwin->dirty = 1;
 	}
 	return 0;
