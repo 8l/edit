@@ -53,15 +53,15 @@ static ECmd etab[] = {
  * the list of builtins, if not found, it is run in a shell.
  */
 int
-ex_run(unsigned p0)
+ex_run(W *w, unsigned p0)
 {
 	unsigned p1;
 	ECmd *e;
 
-	e = lookup(&curwin->eb->b, p0, &p1);
-	if (e && e->f(win_text(curwin), curwin->eb, p1))
-	if (win_text(curwin) != curwin)
-		curwin = win_tag_toggle(curwin);
+	e = lookup(&w->eb->b, p0, &p1);
+	if (e && e->f(win_text(w), w->eb, p1))
+	if (w == curwin && win_text(w) != w)
+		curwin = win_tag_toggle(w);
 	return 0;
 }
 

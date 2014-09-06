@@ -1121,7 +1121,7 @@ static int a_tag(char buf, Cmd c, Cmd mc)
 static int a_run(char buf, Cmd c, Cmd mc)
 {
 	(void)buf; @+(void) c; @+(void) mc;
-	return ex_run(curwin->cu);
+	return ex_run(curwin, curwin->cu);
 }
 
 @ The insertion commands are all treated in the following procedure.
