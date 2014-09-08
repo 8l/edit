@@ -4,24 +4,24 @@ typedef struct page Page;
 typedef struct buf  Buf;
 
 enum {
-	PageLen = 11,
+	PageLen = 1024 - 8,
 };
 
 struct page {
-	int len;
-	int nl;
-	int col;
-	Rune *hbeg;
-	Rune buf[PageLen];
-	Page *p;
-	Page *n;
+	int len;           /* page length */
+	short nl;          /* number of \n in page */
+	short col;         /* column of the first rune */
+	Rune *hbeg;        /* start of the hole */
+	Page *p;           /* link to previous */
+	Page *n;           /* link to next */
+	Rune buf[PageLen]; /* buffer */
 };
 
 struct buf {
-	Page *p;
-	Page *last;
-	unsigned lastbeg;
-	unsigned limbo;
+	Page *p;           /* first page */
+	Page *last;        /* cached page */
+	unsigned lastbeg;  /* buffer offset of last */
+	unsigned limbo;    /* limbo offset */
 };
 
 void buf_init(Buf *);
