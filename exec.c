@@ -488,7 +488,7 @@ run(W *w, EBuf *eb, unsigned p0)
 		abort();
 	}
 	r->eb->refs++;
-	if (ctyp != 0)
+	if (ctyp != 0 && ctyp != '>')
 	if (s0 != s1) {
 		eb_setmark(w->eb, SelBeg, -1u); /* clear selection */
 		eb_setmark(w->eb, SelEnd, -1u);
