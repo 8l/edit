@@ -561,7 +561,7 @@ lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li)
 	li->beg = li->len = 0;
 	x = 0;
 
-	while (1) {
+	for (;;) {
 		r = buf_get(&w->eb->b, off);
 		rw = runewidth(r, x);
 
