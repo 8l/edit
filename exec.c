@@ -90,21 +90,31 @@ ex_look(W *w, Rune *s, unsigned n)
 	}
 }
 
-/* ex_get - Load the buffer [eb] from the file [file].  See ex_put
- * for more information.
+/* ex_get - Load the file [file] in the window [w].  See ex_put
+ * for more information on the path argument.
  */
 int
-ex_get(EBuf *eb, char *file)
+ex_get(W *w, char *file)
 {
 	int fd;
 	struct stat st;
-	char *file1;
+	char *file1, *p;
+	EBuf *eb;
+	long ln;
 
+	ln = 1;
+	eb = w->eb;
 	if (!file)
 		file = eb->path;
 	if (!file) {
 		errstr = "no file to read from";
 		return 1;
+	}
+	if ((p = strchr(file, ':'))) {
+		*p = 0;
+		ln = strtol(p+1, 0, 10);
+		if (ln > INT_MAX || ln < 0)
+			ln = 0;
 	}
 	if (eb->path && strcmp(eb->path, file) != 0)
 	if (eb->frev != eb_revision(eb)) {
@@ -127,6 +137,7 @@ ex_get(EBuf *eb, char *file)
 	eb->path = file1;
 	eb->ftime = st.st_mtime;
 	eb->frev = eb_revision(eb);
+	w->cu = buf_setlc(&eb->b, ln-1, 0);
 	return 0;
 }
 
@@ -231,8 +242,7 @@ lookup(Buf *b, unsigned p0, unsigned *p1)
 static char *
 buftobytes(Buf *b, unsigned p0, unsigned p1, unsigned *sz)
 {
-	char *s;
-	unsigned char *t;
+	unsigned char *s, *t;
 	unsigned n, p;
 
 	n = 0;
@@ -242,10 +252,10 @@ buftobytes(Buf *b, unsigned p0, unsigned p1, unsigned *sz)
 		*sz = n;
 	s = malloc(n+1);
 	assert(s);
-	for (t=(unsigned char *)s, p=p0; p<p1; p++)
+	for (t=s, p=p0; p<p1; p++)
 		t += utf8_encode_rune(buf_get(b, p), t, 8); /* XXX 8 */
 	*t = 0;
-	return s;
+	return (char *)s;
 }
 
 
@@ -254,30 +264,20 @@ buftobytes(Buf *b, unsigned p0, unsigned p1, unsigned *sz)
 static int
 get(W *w, EBuf *eb, unsigned p0)
 {
-	char *f, *p;
+	char *f;
 	unsigned p1;
 	int e;
-	long ln;
 
 	f = 0;
-	ln = 1;
 	p1 = 1 + skipb(&eb->b, buf_eol(&eb->b, p0) - 1, -1);
-	if (p0 < p1) {
+	if (p0 < p1)
 		f = buftobytes(&eb->b, p0, p1, 0);
-		if ((p = strchr(f, ':'))) {
-			*p = 0;
-			ln = strtol(p+1, 0, 10);
-			if (ln > INT_MAX || ln < 0)
-				ln = 0;
-		}
-	}
-	e = ex_get(w->eb, f);
+	e = ex_get(w, f);
 	free(f);
 	if (e) {
 		err(eb, p0, errstr);
 		return 0;
 	}
-	w->cu = buf_setlc(&w->eb->b, ln-1, 0);
 	return 1;
 }
 

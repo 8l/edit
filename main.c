@@ -148,16 +148,14 @@ int
 main(int ac, char *av[])
 {
 	int guifd;
-	EBuf *eb;
 
 	g = &gui_x11;
 	guifd = g->init();
 	ev_register((Evnt){guifd, ERead, gev, 0});
 	win_init(g);
-	eb = eb_new();
+	curwin = win_new(eb_new());
 	if (ac > 1)
-		ex_get(eb, av[1]);
-	curwin = win_new(eb);
+		ex_get(curwin, av[1]);
 	gev(0, 0, 0);
 	ev_loop();
 }
