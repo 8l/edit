@@ -60,7 +60,7 @@ ev_alarm(int ms, void (*f)())
 void
 ev_register(Evnt e)
 {
-	elist = realloc(elist, (ne + 1) * sizeof (Evnt));
+	elist = realloc(elist, (ne + 1) * sizeof(Evnt));
 	assert(elist);
 	elist[ne] = e;
 	ne++;
@@ -123,10 +123,10 @@ ev_loop()
 			}
 			if (elist[i].f(elist[i].fd, flags, elist[i].p)) {
 				ne--;
-				memmove(&elist[i], &elist[i+1], (ne - i) * sizeof (Evnt));
+				memmove(&elist[i], &elist[i+1], (ne - i) * sizeof(Evnt));
 				continue;
-			} else
-				i++;
+			}
+			i++;
 		}
 	}
 }
