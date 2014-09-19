@@ -8,6 +8,7 @@ typedef struct log  Log;
 typedef struct mark Mark;
 typedef struct ebuf EBuf;
 typedef struct ybuf YBuf;
+typedef struct task Task;
 
 struct ybuf {
 	Rune *r;
@@ -17,19 +18,18 @@ struct ybuf {
 };
 
 struct ebuf {
-	Buf b;		/* base text buffer */
-	Log *undo;	/* undo redo logs */
+	Buf b;          /* base text buffer */
+	Log *undo;      /* undo redo logs */
 	Log *redo;
-	Mark *ml;	/* buffer marks */
-	char *path;	/* file path */
+	Mark *ml;       /* buffer marks */
+	char *path;     /* file path */
 	time_t ftime;   /* last mtime when written/read */
 	unsigned frev;  /* last revision written */
-	int refs;       /* ref count, if <0 zombie buffer */
+	Task *tasks;    /* bound tasks currently running */
 };
 
-EBuf *eb_new(void);
+EBuf *eb_new(int);
 void eb_kill(EBuf *);
-void eb_clr(EBuf *, int);
 unsigned eb_revision(EBuf *);
 void eb_del(EBuf *, unsigned, unsigned);
 void eb_ins(EBuf *, unsigned, Rune);

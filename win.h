@@ -32,7 +32,7 @@ struct w {
 enum CursorLoc { CTop, CMid, CBot };
 
 void win_init(struct gui *g);
-W *win_new(EBuf *eb);
+W *win_new(void);
 W *win_kill(W *);
 unsigned win_at(W *w, int x, int y);
 W *win_which(int x, int y);

@@ -180,7 +180,7 @@ log_clr(Log *l)
 }
 
 EBuf *
-eb_new()
+eb_new(int fd)
 {
 	EBuf *eb;
 
@@ -190,22 +190,18 @@ eb_new()
 	eb->redo = log_new();
 	eb->ml = 0;
 	eb->path = 0;
-	eb->refs = 0;
+	eb->tasks = 0;
+	if (fd != -1)
+		geteb(eb, fd);
 	return eb;
 }
 
-/* eb_kill - Free all the memory used by [eb].  If the
- * refcount is non-zero, it switches its sign and does
- * not free the memory used by [eb].  Otherwise, all
- * the memory is freed.
- */
 void
 eb_kill(EBuf *eb)
 {
 	Mark *m;
 
-	assert(eb->refs >= 0);
-	eb->refs = -eb->refs;
+	assert(!eb->tasks);
 	buf_clr(&eb->b);
 	log_clr(eb->undo);
 	log_clr(eb->redo);
@@ -217,30 +213,7 @@ eb_kill(EBuf *eb)
 	free(eb->undo);
 	free(eb->redo);
 	free(eb->path);
-	if (eb->refs == 0)
-		free(eb);
-}
-
-/* eb_clr - Reset the buffer contents and marks and read
- * the new contents from the file descriptor [fd] if it is
- * different from -1.
- */
-void
-eb_clr(EBuf *eb, int fd)
-{
-	Mark *m;
-
-	buf_clr(&eb->b);
-	log_clr(eb->undo);
-	log_clr(eb->redo);
-	while (eb->ml) {
-		m = eb->ml->next;
-		free(eb->ml);
-		eb->ml = m;
-	}
-	if (fd != -1)
-		geteb(eb, fd);
-	assert(eb->path == 0);
+	free(eb);
 }
 
 void

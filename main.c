@@ -43,7 +43,7 @@ resetclicks()
 	clicks = 0;
 }
 
-static int
+static void
 gev(int fd, int flag, void *unused)
 {
 	enum {
@@ -141,7 +141,6 @@ gev(int fd, int flag, void *unused)
 		curwin->cu = p0;
 		curwin->dirty = 1;
 	}
-	return 0;
 }
 
 int
@@ -151,9 +150,9 @@ main(int ac, char *av[])
 
 	g = &gui_x11;
 	guifd = g->init();
-	ev_register((Evnt){guifd, ERead, gev, 0});
+	ev_register(guifd, ERead, gev, 0);
 	win_init(g);
-	curwin = win_new(eb_new());
+	curwin = win_new();
 	if (ac > 1)
 		ex_get(curwin, av[1]);
 	gev(0, 0, 0);

@@ -29,6 +29,20 @@ struct ecmd {
 	int (*f)(W *, EBuf *, unsigned);
 };
 
+struct task {
+	EBuf *eb;
+	unsigned p;    /* insertion point in eb */
+	unsigned ins;  /* numbers of runes written in eb */
+	char *ob;      /* input to the command */
+	unsigned no;   /* number of bytes in the ob array */
+	unsigned snt;  /* number of bytes sent */
+	char in[8];    /* input buffer for partial utf8 sequences XXX 8 */
+	unsigned ni;   /* numbers of bytes in the in array */
+	int rfd;       /* read fd, -1 if none */
+	int wfd;       /* write fd, -1 if none */
+	Task *next;
+};
+
 static ECmd *lookup(Buf *, unsigned, unsigned *);
 static unsigned skipb(Buf *, unsigned, int);
 static int get(W *, EBuf *, unsigned);
@@ -129,9 +143,9 @@ ex_get(W *w, char *file)
 	file1 = malloc(strlen(file)+1);
 	assert(file1);
 	strcpy(file1, file);
-	free(eb->path);
-	eb->path = 0;
-	eb_clr(eb, fd);
+	eb_kill(eb);
+	eb = eb_new(fd);
+	w->eb = eb;
 	close(fd);
 	stat(file1, &st);
 	eb->path = file1;
@@ -187,6 +201,29 @@ ex_put(EBuf *eb, char *file)
 		eb->frev = eb_revision(eb);
 	}
 	return 0;
+}
+
+/* ex_cancel - Cancel a running task and free all the resources
+ * related to it.
+ */
+void
+ex_cancel(Task *t)
+{
+	Task **p;
+
+	for (p=&t->eb->tasks; *p!=t; p=&(*p)->next)
+		assert(*p);
+	*p = t->next;
+	if (t->rfd >= 0) {
+		ev_cancel(t->rfd);
+		close(t->rfd);
+	}
+	if (t->wfd >= 0) {
+		ev_cancel(t->wfd);
+		close(t->wfd);
+	}
+	free(t->ob);
+	free(t);
 }
 
 
@@ -324,7 +361,7 @@ look(W *w, EBuf *eb, unsigned p0)
 static int
 new(W *w, EBuf *eb, unsigned p0)
 {
-	w = win_new(eb_new());
+	w = win_new();
 	if (w)
 		curwin = win_tag_toggle(w);
 	else
@@ -343,79 +380,52 @@ del(W *w, EBuf *eb, unsigned p0)
 	return 0;
 }
 
-typedef struct run Run;
-struct run {
-	EBuf *eb;      /* 0 if no more to read */
-	unsigned p;    /* insertion point in eb */
-	unsigned ins;  /* numbers of runes written in eb */
-	char *ob;      /* input to the command, 0 if none */
-	unsigned no;   /* number of bytes in the ob array */
-	unsigned snt;  /* number of bytes sent */
-	char in[8];    /* input buffer for partial utf8 sequences XXX 8 */
-	unsigned nin;  /* numbers of bytes in the in array */
-};
-
-static int
+static void
 runev(int fd, int flag, void *data)
 {
-	Run *rn;
+	Task *t;
 	int n, dec;
 	unsigned char buf[2048], *p;
 	Rune r;
 
-	rn = data;
-	n = rn->eb->refs;
-	if (n < 0) {
-		/* zombie buffer */
-		rn->eb->refs++;
-/* puts("tick"); */
-		if (n == -1)
-/* puts("tock!"), */
-			free(rn->eb);
-		rn->eb = 0;
-		close(fd);
-		goto Reset;
-	}
+	t = data;
 	if (flag & ERead) {
-		assert(rn->eb);
-		memcpy(buf, rn->in, rn->nin);
-		n = read(fd, &buf[rn->nin], sizeof buf - rn->nin);
+		assert(t->rfd == fd);
+		memcpy(buf, t->in, t->ni);
+		n = read(fd, &buf[t->ni], sizeof buf - t->ni);
 		if (n <= 0) {
-			close(fd);
-			rn->eb->refs--;
-			rn->eb = 0;
-			goto Reset;
+			t->rfd = -1;
+			goto Close;
 		}
 		p = buf;
 		while ((dec = utf8_decode_rune(&r, p, n))) {
-			eb_ins(rn->eb, rn->p + rn->ins++, r);
+			eb_ins(t->eb, t->p + t->ins++, r);
 			p += dec;
 			n -= dec;
 		}
-		assert((unsigned)n <= sizeof rn->in);
-		rn->nin = n;
-		memcpy(rn->in, p, n);
-		eb_setmark(rn->eb, SelBeg, rn->p);
-		eb_setmark(rn->eb, SelEnd, rn->p + rn->ins);
-		eb_commit(rn->eb);
+		assert((unsigned)n <= sizeof t->in);
+		t->ni = n;
+		memcpy(t->in, p, n);
+		eb_setmark(t->eb, SelBeg, t->p);
+		eb_setmark(t->eb, SelEnd, t->p + t->ins);
+		eb_commit(t->eb);
 		win_redraw_frame();
 	}
 	if (flag & EWrite) {
-		assert(rn->ob);
-		n = write(fd, &rn->ob[rn->snt], rn->no - rn->snt);
-		rn->snt += n;
-		if (n < 0 || rn->snt == rn->no) {
-			close(fd);
-			free(rn->ob);
-			rn->ob = 0;
-			goto Reset;
+		assert(t->ob && t->wfd == fd);
+		n = write(fd, &t->ob[t->snt], t->no - t->snt);
+		t->snt += n;
+		if (n < 0 || t->snt == t->no) {
+			t->wfd = -1;
+			goto Close;
 		}
 	}
-	return 0;
-Reset:
-	if (rn->eb == 0 && rn->ob == 0)
-		free(rn);
-	return 1;
+	return;
+Close:
+	ev_cancel(fd);
+	close(fd);
+	if (t->rfd < 0 && t->wfd < 0)
+		ex_cancel(t);
 }
 
 static int
@@ -424,7 +434,7 @@ run(W *w, EBuf *eb, unsigned p0)
 	unsigned p1, eol, s0, s1;
 	char *argv[4], *cmd, ctyp;
 	int pin[2], pout[2];
-	Run *r;
+	Task *t;
 
 	eol = buf_eol(&eb->b, p0);
 	p1 = 1 + skipb(&eb->b, eol-1, -1);
@@ -459,46 +469,50 @@ run(W *w, EBuf *eb, unsigned p0)
 	free(cmd);
 	close(pin[0]);
 	close(pout[1]);
-	r = calloc(1, sizeof *r);
-	assert(r);
+	t = calloc(1, sizeof *t);
+	assert(t);
 	switch (ctyp) {
 	case '>':
-		r->eb = eb;
-		r->p = eol+1;
-		r->ob = buftobytes(&w->eb->b, s0, s1, &r->no);
+		t->eb = eb;
+		t->p = eol+1;
+		t->ob = buftobytes(&w->eb->b, s0, s1, &t->no);
 		break;
 	case '<':
-		r->eb = w->eb;
-		r->p = s0;
-		r->ob = 0;
+		t->eb = w->eb;
+		t->p = s0;
+		t->ob = 0;
 		eb_del(w->eb, s0, s1);
 		break;
 	case '|':
-		r->eb = w->eb;
-		r->p = s0;
-		r->ob = buftobytes(&w->eb->b, s0, s1, &r->no);
+		t->eb = w->eb;
+		t->p = s0;
+		t->ob = buftobytes(&w->eb->b, s0, s1, &t->no);
 		eb_del(w->eb, s0, s1);
 		break;
 	case 0:
-		r->eb = eb;
-		r->p = eol+1;
-		r->ob = 0;
+		t->eb = eb;
+		t->p = eol+1;
+		t->ob = 0;
 		break;
 	default:
 		abort();
 	}
-	r->eb->refs++;
 	if (ctyp != 0 && ctyp != '>')
 	if (s0 != s1) {
 		eb_setmark(w->eb, SelBeg, -1u); /* clear selection */
 		eb_setmark(w->eb, SelEnd, -1u);
 	}
 	eb_commit(w->eb);
-	if (r->ob)
-		ev_register((Evnt){pin[1], EWrite, runev, r});
-	else
+	if (t->ob) {
+		t->wfd = pin[1];
+		ev_register(t->wfd, EWrite, runev, t);
+	} else {
+		t->wfd = -1;
 		close(pin[1]);
-	ev_register((Evnt){pout[0], ERead, runev, r});
-
+	}
+	t->rfd = pout[0];
+	ev_register(t->rfd, ERead, runev, t);
+	t->next = t->eb->tasks;
+	t->eb->tasks = t;
 	return 0;
 }

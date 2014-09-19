@@ -15,7 +15,17 @@ int exiting;
 	(a).tv_usec > (b).tv_usec : \
 	(a).tv_sec > (b).tv_sec)
 
+typedef struct evnt  Evnt;
 typedef struct alarm Alarm;
+
+struct evnt {
+	int valid;
+	int fd;
+	int flags;
+	void (*f)(int, int, void *);
+	void *p;
+};
+
 struct alarm {
 	struct timeval t;
 	void (*f)();
@@ -58,12 +68,25 @@ ev_alarm(int ms, void (*f)())
 }
 
 void
-ev_register(Evnt e)
+ev_register(int fd, int flags, void (*f)(int, int, void *), void *p)
 {
 	elist = realloc(elist, (ne + 1) * sizeof(Evnt));
 	assert(elist);
-	elist[ne] = e;
+	elist[ne] = (Evnt){1, fd, flags, f, p};
 	ne++;
+}
+
+void
+ev_cancel(int fd)
+{
+	int i;
+
+	for (i=0; i<ne; i++)
+		if (elist[i].fd == fd) {
+			elist[i].valid = 0;
+			return;
+		}
+	assert(0);
 }
 
 void
@@ -72,13 +95,14 @@ ev_loop()
 	struct timeval tv;
 	Alarm a;
 	fd_set rfds, wfds;
-	int i, maxfd, flags;
+	int i, j, maxfd, flags;
 
 	while (!exiting) {
 		maxfd = -1;
 		FD_ZERO(&rfds);
 		FD_ZERO(&wfds);
 		for (i=0; i < ne; i++) {
+			assert(elist[i].valid);
 			if (elist[i].flags & ERead)
 				FD_SET(elist[i].fd, &rfds);
 			if (elist[i].flags & EWrite)
@@ -111,26 +135,22 @@ ev_loop()
 			popalarm();
 			a.f();
 		}
-		for (i=0; i < ne;) {
+		for (i=0; i<ne; i++) {
 			flags = 0;
 			if (FD_ISSET(elist[i].fd, &rfds))
 				flags |= ERead;
 			if (FD_ISSET(elist[i].fd, &wfds))
 				flags |= EWrite;
-			if (flags == 0) {
-				i++;
+			if (flags == 0 || !elist[i].valid)
 				continue;
-			}
-			if (elist[i].f(elist[i].fd, flags, elist[i].p)) {
-				ne--;
-				memmove(&elist[i], &elist[i+1], (ne - i) * sizeof(Evnt));
-				continue;
-			}
-			i++;
+			elist[i].f(elist[i].fd, flags, elist[i].p);
 		}
+		for (i=j=0; i<ne; i++)
+			if (elist[i].valid)
+				elist[j++] = elist[i];
+		ne = j;
 	}
 }
-
 
 static void
 pushalarm(Alarm a)

@@ -9,6 +9,7 @@
 #include "edit.h"
 #include "gui.h"
 #include "win.h"
+#include "exec.h"
 
 enum { RingSize = 1 }; /* bigger is (a bit) faster */
 
@@ -48,7 +49,7 @@ win_init(struct gui *gui)
 	tabw = TabWidth * g->textwidth((Rune[]){' '}, 1);
 
 	/* initialize the tag */
-	tag.win.eb = eb_new();
+	tag.win.eb = eb_new(-1);
 	eb_ins_utf8(tag.win.eb, 0, (unsigned char *)TagInit, sizeof TagInit - 1);
 
 	/* the gui module does not give a way to access the screen
@@ -64,12 +65,11 @@ win_init(struct gui *gui)
  * windows), 0 is returned.
  */
 W *
-win_new(EBuf *eb)
+win_new()
 {
 	W *w, *w1;
 	int i, x, size;
 
-	assert(eb);
 	for (w1=wins;; w1++) {
 		if (w1 - wins >= MaxWins)
 			return 0;
@@ -87,7 +87,7 @@ win_new(EBuf *eb)
 		x = w->rectx + w->rectw + g->border;
 		i++;
 	}
-	w1->eb = eb;
+	w1->eb = eb_new(-1);
 	move(w1, x, 0, size, fheight);
 	screen[i] = w1;
 	screen[i+1] = 0;
@@ -115,6 +115,8 @@ win_kill(W *w)
 		rx = w1->rectx;
 	}
 	move(w1, rx, 0, w->rectw+g->border+w1->rectw, fheight);
+	while (w->eb->tasks)
+		ex_cancel(w->eb->tasks);
 	eb_kill(w->eb);
 	memset(w, 0, sizeof(W));
 	w->eb = 0;
@@ -625,8 +627,11 @@ int main()
 	eb = eb_new();
 	gui_x11.init();
 	win_init(&gui_x11);
-	for (int i = 0; i < N; i++)
-		ws[i] = win_new(eb);
+	for (int i = 0; i < N; i++) {
+		ws[i] = win_new();
+		eb_kill(ws[i]->eb);
+		ws[i]->eb = eb;
+	}
 	w = ws[0];
 
 	for (int i=0; i<5; i++)
