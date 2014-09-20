@@ -1,4 +1,4 @@
-/*% clang -DN=3 -DWIN_TEST -Wall -g $(pkg-config --libs x11 xft) obj/{unicode,buf,edit,x11}.o % -o #
+/*% clang -DN=2 -DWIN_TEST -Wall -g $(pkg-config --libs x11 xft) obj/{unicode,buf,edit,x11}.o % -o #
  */
 
 #include <assert.h>
@@ -608,6 +608,7 @@ lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li)
 #include <sys/select.h>
 #include <sys/time.h>
 
+void ex_cancel(Task *t) { (void)t; }
 void die(char *m) { exit(1); }
 
 int main()
@@ -615,6 +616,7 @@ int main()
 	GEvent e;
 	EBuf *eb;
 	W *ws[N], *w;
+	int i;
 	enum CursorLoc cloc;
 	unsigned char s[] =
 	"je suis\n"
@@ -624,19 +626,19 @@ int main()
 	"un peu d'unicode: ä æ ç\n"
 	"et voila!\n\n";
 
-	eb = eb_new();
+	eb = eb_new(-1);
 	gui_x11.init();
 	win_init(&gui_x11);
-	for (int i = 0; i < N; i++) {
+	for (i=0; i<N; i++) {
 		ws[i] = win_new();
 		eb_kill(ws[i]->eb);
 		ws[i]->eb = eb;
 	}
 	w = ws[0];
 
-	for (int i=0; i<5; i++)
+	for (i=0; i<5; i++)
 		eb_ins_utf8(eb, 0, s, sizeof s - 1);
-	for (int i=0; i<5; i++)
+	for (i=0; i<5; i++)
 		eb_ins_utf8(tag.win.eb, 0, (unsigned char *)"TAG WINDOW\n", 10);
 
 	do {

@@ -528,7 +528,7 @@ main() {
 	size_t len;
 	EBuf *eb;
 
-	eb = eb_new();
+	eb = eb_new(-1);
 
 	while (fgets((char *)line, 1024, stdin)) {
 		switch (line[0]) {
