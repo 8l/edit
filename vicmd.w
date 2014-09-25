@@ -235,22 +235,8 @@ static struct {
 } keys[128] = { @<Key definitions@> };
 
 
-@** Execution of the parsed commands.
-Two major kind of commands must be considered here: {\sl destructive}
-commands and {\sl motion} commands.
-
-
-@ {\bf Move me} Buffers can be in two modes: {\sl character} mode and {\sl text}
-mode.  This distinction entails a semantic difference when the text is
-copied from buffers.  If the buffer is in line mode, atomic elements of
-the document are lines, thus, a copy will affect only entire lines.  If the
-buffer is in character mode, parts of lines can be altered by a copy.  The
-mode of a buffer is determined when text is assigned to it, most often the
-motion command used as parameter of a destructive command is responsible
-for setting the buffer mode.
-
-@ The commands act on the active window.  This window is accessible
-via a global program variable.
+@** Execution of the parsed commands. The commands act on the active
+window.  This window is accessible via a global program variable.
 
 @d curb (&curwin->eb->b) /* convenient alias for the current buffer */
 
@@ -1108,6 +1094,7 @@ toggles the tag window.  This is a scratch area used to input
 complex commands acting on the underlying main window.  This
 concept is taken from Pike's Acme text editor and adapted to a
 keyboard driven editor with minimal visual footprint.
+@^Acme like feature@>
 
 @<Subr...@>=
 static int a_tag(char buf, Cmd c, Cmd mc)
@@ -1117,7 +1104,12 @@ static int a_tag(char buf, Cmd c, Cmd mc)
 	return 0;
 }
 
-// XXX
+@ Still from Acme, the editor allows the user to run arbitrary
+commands in a buffer.  The |ex_run| function is defined in an
+external module since it is not tied to the editing logic.
+@^Acme like feature@>
+
+@<Subr...@>=
 static int a_run(char buf, Cmd c, Cmd mc)
 {
 	(void)buf; @+(void) c; @+(void) mc;
