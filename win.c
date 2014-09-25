@@ -460,8 +460,7 @@ draw(W *w, GColor bg)
 	cw = 0;
 	x = g->hmargin;
 	y = g->vmargin + font.ascent;
-	f.n = 0;
-	flushfrag(&f, w, x, y, sel);
+	f = (struct frag){.x=x, .y=y};
 	next = &w->l[1];
 
 	for (c=w->l[0];; c++) {
