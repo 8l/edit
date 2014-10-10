@@ -879,6 +879,23 @@ static int m_n(int ismotion, Cmd c, Motion *m)
 @ @<Predecl...@>=
 static int m_n(int, Cmd, Motion *);
 
+@ Because the search functionality is different, the \./ command is free
+to use.  We reuse it as a motion that designates the whole selection.
+This way, it is easy to delete or change a selected region using regular
+\.{vi} commands.
+
+@<Subr...@>=
+static int m_sel(int ismotion, Cmd c, Motion *m)
+{
+	if (!ismotion || c.count != 1) return 1;
+	m->beg = eb_getmark(curwin->eb, SelBeg);
+	m->end = eb_getmark(curwin->eb, SelEnd);
+	return m->beg >= m->end || m->end == -1u;
+}
+
+@ @<Predecl...@>=
+static int m_sel(int, Cmd, Motion *);
+
 @*1 Hacking the motion commands. Here is a short list of things you
 want to know if you start hacking either the motion commands, or any
 function used to implement them.
@@ -973,7 +990,7 @@ static int a_pP(char buf, Cmd c, Cmd mc)
 {
 	YBuf *y = &yannon;
 
-	(void) mc;
+	(void)mc;
 	if (buf >= '1' && buf <= '9')
 		y = &ynum[(ytip + buf - '1') % 9];
 	else if (buf != 0) return 1;
@@ -1032,7 +1049,7 @@ the bookkeeping is done in the edition module.
 @<Subr...@>=
 static int a_m(char buf, Cmd c, Cmd mc)
 {
-	(void) buf;@+ (void) mc;
+	(void)buf; @+(void)mc;
 	eb_setmark(curwin->eb, c.arg, curwin->cu);
 	return 0;
 }
@@ -1043,7 +1060,7 @@ module.
 @<Subr...@>=
 static int a_write(char buf, Cmd c, Cmd mc)
 {
-	(void)buf;@+ (void)c;@+ (void)mc;
+	(void)buf; @+(void)c; @+(void)mc;
 	return ex_put(curwin->eb, 0);
 }
 
@@ -1051,7 +1068,7 @@ static int a_write(char buf, Cmd c, Cmd mc)
 static int a_exit(char buf, Cmd c, Cmd mc)
 {
 	extern int exiting;
-	(void)buf;@+ (void)c;@+ (void)mc;
+	(void)buf; @+(void)c; @+(void)mc;
 	return (exiting = 1);
 }
 
@@ -1068,7 +1085,7 @@ static int a_scroll(char buf, Cmd c, Cmd mc)
 	static int lastud = 0;
 	int cnt;
 
-	(void) buf; @+(void) mc;
+	(void)buf; @+(void)mc;
 	scrolling = 1;
 	switch (c.chr) {
 	case CTRL('E'):
@@ -1099,7 +1116,7 @@ keyboard driven editor with minimal visual footprint.
 @<Subr...@>=
 static int a_tag(char buf, Cmd c, Cmd mc)
 {
-	(void)buf; @+(void) c; @+(void) mc;
+	(void)buf; @+(void)c; @+(void)mc;
 	curwin = win_tag_toggle(curwin);
 	return 0;
 }
@@ -1112,7 +1129,7 @@ external module since it is not tied to the editing logic.
 @<Subr...@>=
 static int a_run(char buf, Cmd c, Cmd mc)
 {
-	(void)buf; @+(void) c; @+(void) mc;
+	(void)buf; @+(void)c; @+(void)mc;
 	return ex_run(curwin, curwin->cu);
 }
 
@@ -1130,7 +1147,7 @@ static int a_ins(char buf, Cmd c, Cmd mc)
 {
 	unsigned cu;
 
-	(void) buf; @+(void) mc;
+	(void)buf; @+(void)mc;
 	if (c.chr == 'a' && curwin->cu != buf_eol(curb, curwin->cu))
 		curwin->cu++;
 	if (c.chr == 'A' || c.chr == 'o')
@@ -1288,7 +1305,7 @@ union {
 ['%'] = Mtn(0, m_match), ['G'] = Mtn(CZeroCount, m_G),@/
 ['H'] = Mtn(0, m_HML), ['L'] = Mtn(0, m_HML),@/
 ['M'] = Mtn(0, m_HML),@/
-['n'] = Mtn(0, m_n),@/
+['n'] = Mtn(0, m_n), ['/'] = Mtn(0, m_sel),@/
 ['\''] = Mtn(CHasArg, m_mark), ['`'] = Mtn(CHasArg, m_mark),@/
 ['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_d),@/
 ['c'] = Act(CHasMotion, a_c), ['y'] = Act(CHasMotion, a_y),@/
