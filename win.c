@@ -448,6 +448,8 @@ draw(W *w, GColor bg)
 	int x, y, cx, cy, cw, rw, sel;
 	unsigned *next, c, s0, s1;
 	Rune r;
+	float pos;
+	int dirty;
 
 	s0 = eb_getmark(w->eb, SelBeg);
 	s1 = eb_getmark(w->eb, SelEnd);
@@ -498,7 +500,9 @@ draw(W *w, GColor bg)
 
 	if (cw != 0)
 		g->drawrect(&w->rect, cx, cy, cw, font.height, GXBlack);
-	g->decorate(&w->rect, w->eb->path && w->eb->frev != eb_revision(w->eb), GGray);
+	dirty = w->eb->path && w->eb->frev != eb_revision(w->eb);
+	pos = w->eb->b.limbo ? (float)w->l[0] / w->eb->b.limbo : 0;
+	g->decorate(&w->rect, dirty, pos, GGray);
 	w->dirty = 0;
 }
 

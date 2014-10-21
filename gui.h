@@ -96,7 +96,7 @@ struct gui {
 	void (*fini)(void);
 	void (*sync)(void);
 	void (*getfont)(GFont *fret);
-	void (*decorate)(GRect *clip, int dirty, GColor color);
+	void (*decorate)(GRect *clip, int dirty, float pos, GColor color);
 	void (*drawtext)(GRect *clip, Rune *str, int len,
 	                 int x, int y, GColor color);
 	void (*drawrect)(GRect *clip, int x, int y, int w, int h, GColor c);

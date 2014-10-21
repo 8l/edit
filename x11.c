@@ -160,15 +160,21 @@ drawrect(GRect *clip, int x, int y, int w, int h, GColor c)
 }
 
 static void
-decorate(GRect *clip, int dirty, GColor c)
+decorate(GRect *clip, int dirty, float pos, GColor c)
 {
-	int boxh;
+	int boxh, scrlh, scrly;
 
 	boxh = VMargin + font->height;
 	drawrect(clip, HMargin-3, 0, 1, clip->h, c);
 	drawrect(clip, 0, boxh, HMargin-3, 1, c);
 	if (dirty)
 		drawrect(clip, 2, 2, HMargin-7, boxh-4, c);
+	scrlh = clip->h - boxh - 5;
+	scrly = pos * (scrlh - font->height);
+	if (scrly > scrlh - font->height)
+		scrly = scrlh - font->height;
+	scrly += boxh + 3;
+	drawrect(clip, 2, scrly, HMargin-7, font->height, c);
 }
 
 static void
