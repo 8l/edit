@@ -162,18 +162,17 @@ drawrect(GRect *clip, int x, int y, int w, int h, GColor c)
 static void
 decorate(GRect *clip, int dirty, float pos, GColor c)
 {
-	int boxh, scrlh, scrly;
+	int boxh, scrly;
 
 	boxh = VMargin + font->height;
 	drawrect(clip, HMargin-3, 0, 1, clip->h, c);
 	drawrect(clip, 0, boxh, HMargin-3, 1, c);
 	if (dirty)
 		drawrect(clip, 2, 2, HMargin-7, boxh-4, c);
-	scrlh = clip->h - boxh - 5;
-	scrly = pos * (scrlh - font->height);
-	if (scrly > scrlh - font->height)
-		scrly = scrlh - font->height;
-	scrly += boxh + 3;
+	assert(pos >= 0);
+	if (pos > 1)
+		pos = 1;
+	scrly = boxh+3 + pos*(clip->h-(boxh+font->height+5));
 	drawrect(clip, 2, scrly, HMargin-7, font->height, c);
 }
 
@@ -182,7 +181,7 @@ setpointer(GPointer pt)
 {
 	static unsigned int map[] = {
 		[GPNormal] = XC_left_ptr,
-		[GPResize] = XC_center_ptr,
+		[GPResize] = XC_fleur,
 	};
 	Cursor c;
 
