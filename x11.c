@@ -176,7 +176,7 @@ setpointer(GPointer pt)
 {
 	static unsigned int map[] = {
 		[GPNormal] = XC_left_ptr,
-		[GPResize] = XC_center_ptr,
+		[GPResize] = XC_fleur,
 	};
 	Cursor c;
 
