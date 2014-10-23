@@ -18,7 +18,7 @@ then executed on the currently focused window.  We try to follow the
 
 @c
 @<Header files to include@>@/
-@<External variables@>@/
+@<External variables and functions@>@/
 @<Local types@>@/
 @<Predeclared functions@>@/
 @<File local variables@>@/
@@ -242,6 +242,7 @@ window.  This window is accessible via a global program variable.
 
 @<External...@>=
 extern W *curwin;
+void chwin(W *);
 
 @* Insertion mode.  Insertions can be replayed---either using a count or
 using the repeat command---so we keep track of all the typed runes in the
@@ -1117,7 +1118,7 @@ keyboard driven editor with minimal visual footprint.
 static int a_tag(char buf, Cmd c, Cmd mc)
 {
 	(void)buf; @+(void)c; @+(void)mc;
-	curwin = win_tag_toggle(curwin);
+	chwin(win_tag_toggle(curwin));
 	return 0;
 }
 

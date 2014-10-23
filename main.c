@@ -27,10 +27,23 @@ static struct gui *g;
 static int clicks;
 
 
+void
+chwin(W *w)
+{
+	cmd_parse(GKEsc); /* reset command parser state */
+	curwin = w;
+}
+
 static int
 risword(Rune r)
 {
 	return risascii(r) && (isalnum(r) || r == '_');
+}
+
+static void
+resetclicks()
+{
+	clicks = 0;
 }
 
 static void
@@ -44,12 +57,6 @@ redraw()
 	win_redraw_frame(curwin, mode == 'i');
 	old = curwin;
 	needsredraw = 0;
-}
-
-static void
-resetclicks()
-{
-	clicks = 0;
 }
 
 void
@@ -98,7 +105,7 @@ gev(int fd, int flag, void *unused)
 					resizing = 1;
 					break;
 				}
-				curwin = mousewin;
+				chwin(mousewin);
 				p0 = win_at(mousewin, e.mouse.x, e.mouse.y);
 				selbeg = p0;
 				ev_alarm(DoubleClick, resetclicks);

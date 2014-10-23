@@ -21,6 +21,7 @@
 #include "evnt.h"
 
 extern W *curwin;
+void chwin(W *);
 void repaint(void);
 void die(char *);
 
@@ -76,7 +77,7 @@ ex_run(W *w, unsigned p0)
 	e = lookup(&w->eb->b, p0, &p1);
 	if (e && e->f(win_text(w), w->eb, p1))
 	if (w == curwin && win_text(w) != w)
-		curwin = win_tag_toggle(w);
+		chwin(win_tag_toggle(w));
 	return 0;
 }
 
@@ -364,7 +365,7 @@ new(W *w, EBuf *eb, unsigned p0)
 {
 	w = win_new();
 	if (w)
-		curwin = win_tag_toggle(w);
+		chwin(win_tag_toggle(w));
 	else
 		err(eb, p0, "no more windows");
 	return 0;
@@ -375,7 +376,7 @@ del(W *w, EBuf *eb, unsigned p0)
 {
 	w = win_kill(w);
 	if (w)
-		curwin = w;
+		chwin(w);
 	else
 		err(eb, p0, "last window");
 	return 0;
