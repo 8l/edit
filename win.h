@@ -27,8 +27,6 @@ struct w {
 	EBuf *eb;              /* underlying buffer object */
 	GRect rect;            /* rectangle on the screen */
 	int dirty: 1;          /* force redraw */
-	int insert: 1;         /* inserting */
-	int focus: 1;          /* focused window */
 };
 
 enum CursorLoc { CTop, CMid, CBot };
