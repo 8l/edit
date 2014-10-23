@@ -17,9 +17,13 @@
 
 W *curwin;
 int scrolling;
+int needsredraw;
 
+enum {
+	RedrawDelay = 16, /* in milliseconds */
+	DoubleClick = 600,
+};
 static struct gui *g;
-static int needsredraw;
 static int clicks;
 
 
@@ -32,8 +36,13 @@ risword(Rune r)
 static void
 redraw()
 {
+	static W *old;
+
 	assert(needsredraw);
-	win_redraw_frame();
+	if (old != curwin && old)
+		old->dirty = 1;
+	win_redraw_frame(curwin, mode == 'i');
+	old = curwin;
 	needsredraw = 0;
 }
 
@@ -43,13 +52,18 @@ resetclicks()
 	clicks = 0;
 }
 
+void
+repaint()
+{
+	if (needsredraw)
+		return;
+	ev_alarm(RedrawDelay, redraw);
+	needsredraw = 1;
+}
+
 static void
 gev(int fd, int flag, void *unused)
 {
-	enum {
-		RedrawDelay = 16, /* in milliseconds */
-		DoubleClick = 200,
-	};
 	static unsigned selbeg;
 	static W *mousewin;
 	static int resizing;
@@ -59,10 +73,7 @@ gev(int fd, int flag, void *unused)
 
 	(void)fd; (void)flag; (void)unused;
 	while (g->nextevent(&e)) {
-		if (!needsredraw) {
-			ev_alarm(RedrawDelay, redraw);
-			needsredraw = 1;
-		}
+		repaint();
 		switch (e.type) {
 		case GResize:
 			win_resize_frame(e.resize.width, e.resize.height);

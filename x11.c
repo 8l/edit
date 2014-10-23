@@ -160,6 +160,15 @@ drawrect(GRect *clip, int x, int y, int w, int h, GColor c)
 }
 
 static void
+drawcursor(GRect *clip, int insert, int x, int y, int w)
+{
+	if (insert)
+		drawrect(clip, x, y, 2, font->height, GXBlack);
+	else
+		drawrect(clip, x, y, w, font->height, GXBlack);
+}
+
+static void
 decorate(GRect *clip, int dirty, GColor c)
 {
 	int boxh;
@@ -335,15 +344,16 @@ struct gui gui_x11 = {
 	.init		= init,
 	.fini		= fini,
 	.sync		= sync,
-	.decorate       = decorate,
+	.decorate	= decorate,
 	.drawrect	= drawrect,
+	.drawcursor	= drawcursor,
 	.drawtext	= drawtext,
 	.getfont	= getfont,
 	.nextevent	= nextevent,
-	.setpointer     = setpointer,
+	.setpointer	= setpointer,
 	.textwidth	= textwidth,
-	.hmargin        = HMargin,
-	.vmargin        = VMargin,
-	.border         = Border,
-	.actionr        = {0, 0, 0, 0},
+	.hmargin	= HMargin,
+	.vmargin	= VMargin,
+	.border		= Border,
+	.actionr	= {0, 0, 0, 0},
 };

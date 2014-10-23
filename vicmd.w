@@ -52,7 +52,7 @@ enum {
 	Command = 'c',
 	Insert = 'i'
 };
-static int mode = Command;
+int mode = Command;
 
 
 @** Parsing of commands. We structure the parsing function as a
@@ -159,6 +159,19 @@ if (!risbuf(r)) goto err;
 buf = r;
 state = CmdChar;
 
+@ When a double character command is expected we ensure that the
+second character received is the same as the first and resume
+the processing performed in |@<Input command count...@>|.
+
+@<Get the second char...@>=
+if (r != pcmd->chr)
+	goto err;
+goto gotdbl;
+
+@ @<Get the command arg...@>=
+pcmd->arg = r;
+goto gotarg;
+
 @ The |CmdChar| state needs to handle both the count and the command
 name.  Depending on the command kind (double char, expecting an
 argument, ...) we have to update the state differently.  To get this
@@ -190,19 +203,6 @@ gotarg:
 	docmd(buf, c, m);
 	@<Reset parsing state@>;
 }
-
-@ When a double character command is expected we ensure that the
-second character received is the same as the first and resume
-the processing performed in |@<Input command count...@>|.
-
-@<Get the second char...@>=
-if (r != pcmd->chr)
-	goto err;
-goto gotdbl;
-
-@ @<Get the command arg...@>=
-pcmd->arg = r;
-goto gotarg;
 
 @ The internal state is reset by zeroing the |count| field of the
 commands, this is necessary since |@<Input command count...@>| relies

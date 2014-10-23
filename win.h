@@ -26,7 +26,9 @@ struct w {
 	unsigned cu;           /* cursor offset */
 	EBuf *eb;              /* underlying buffer object */
 	GRect rect;            /* rectangle on the screen */
-	int dirty;             /* force redraw */
+	int dirty: 1;          /* force redraw */
+	int insert: 1;         /* inserting */
+	int focus: 1;          /* focused window */
 };
 
 enum CursorLoc { CTop, CMid, CBot };
@@ -38,7 +40,7 @@ unsigned win_at(W *w, int x, int y);
 W *win_which(int x, int y);
 void win_move(W *, int x, int y);
 void win_resize_frame(int w, int h);
-void win_redraw_frame(void);
+void win_redraw_frame(W *focus, int insert);
 void win_scroll(W *, int);
 void win_show_cursor(W *, enum CursorLoc);
 W *win_tag_toggle(W *);

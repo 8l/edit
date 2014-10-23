@@ -21,6 +21,7 @@
 #include "evnt.h"
 
 extern W *curwin;
+void repaint(void);
 void die(char *);
 
 typedef struct ecmd ECmd;
@@ -409,7 +410,7 @@ runev(int fd, int flag, void *data)
 		eb_setmark(t->eb, SelBeg, t->p);
 		eb_setmark(t->eb, SelEnd, t->p + t->ins);
 		eb_commit(t->eb);
-		win_redraw_frame();
+		repaint();
 	}
 	if (flag & EWrite) {
 		assert(t->ob && t->wfd == fd);

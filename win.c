@@ -19,7 +19,7 @@ struct lineinfo {
 };
 
 static int dirty(W *);
-static void draw(W *w, GColor bg);
+static void draw(W *w, GColor bg, W *focus, int insert);
 static void move(W *pw, int x, int y, int w, int h);
 static void lineinfo(W *w, unsigned off, unsigned lim, struct lineinfo *li);
 static int runewidth(Rune r, int x);
@@ -239,7 +239,7 @@ win_resize_frame(int w1, int h1)
 /* win_redraw_frame - Redraw the whole frame.
  */
 void
-win_redraw_frame()
+win_redraw_frame(W *focus, int insert)
 {
 	GRect b;
 	W *w;
@@ -253,7 +253,7 @@ win_redraw_frame()
 				b.x = w->rectx + w->rectw;
 				g->drawrect(&b, 0, 0, b.w, b.h, GGray);
 			}
-			draw(w, GPaleYellow);
+			draw(w, GPaleYellow, focus, insert);
 			if (tag.owner == w)
 				tag.win.dirty = 1;
 		}
@@ -262,7 +262,7 @@ win_redraw_frame()
 		b = tag.win.rect;
 		b.y -= g->border;
 		g->drawrect(&b, 0, 0, b.w, g->border, GGray);
-		draw(&tag.win, GPaleGreen);
+		draw(&tag.win, GPaleGreen, focus, insert);
 	}
 	g->sync();
 }
@@ -442,7 +442,7 @@ flushfrag(struct frag *f, W *w, int x, int y, int sel)
 }
 
 static void
-draw(W *w, GColor bg)
+draw(W *w, GColor bg, W *focus, int insert)
 {
 	struct frag f;
 	int x, y, cx, cy, cw, rw, sel;
@@ -496,8 +496,8 @@ draw(W *w, GColor bg)
 			pushfrag(&f, r, rw);
 	}
 
-	if (cw != 0)
-		g->drawrect(&w->rect, cx, cy, cw, font.height, GXBlack);
+	if (cw != 0 && w == focus)
+		g->drawcursor(&w->rect, insert, cx, cy, cw);
 	g->decorate(&w->rect, w->eb->path && w->eb->frev != eb_revision(w->eb), GGray);
 	w->dirty = 0;
 }
@@ -642,7 +642,7 @@ int main()
 
 	do {
 		select(0, 0, 0, 0, &(struct timeval){ 0, 30000 });
-		win_redraw_frame();
+		win_redraw_frame(w, 0);
 		if (!g->nextevent(&e))
 			continue;
 		if (e.type == GResize)
