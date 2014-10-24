@@ -8,13 +8,13 @@ enum {
 };
 
 struct page {
-	int len;           /* page length */
-	short nl;          /* number of \n in page */
-	short col;         /* column of the first rune */
-	Rune *hbeg;        /* start of the hole */
-	Page *p;           /* link to previous */
-	Page *n;           /* link to next */
-	Rune buf[PageLen]; /* buffer */
+	unsigned len;       /* page length */
+	unsigned short nl;  /* number of \n in page */
+	unsigned short col; /* column of the first rune */
+	Rune *hbeg;         /* start of the hole */
+	Page *p;            /* link to previous */
+	Page *n;            /* link to next */
+	Rune buf[PageLen];  /* buffer */
 };
 
 struct buf {
