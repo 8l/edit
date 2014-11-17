@@ -83,18 +83,17 @@ ex_run(W *w, unsigned p0)
 
 /* ex_look - Look for a string [s] in window [w] and jump
  * to the first match after the cursor position.  The caller
- * is responsible to free the [s] buffer.
+ * is responsible to free the [s] buffer.  If [rev] is true
+ * the search goes backward.
  */
 int
-ex_look(W *w, Rune *s, unsigned n)
+ex_look(W *w, Rune *s, unsigned n, int rev)
 {
 	unsigned p;
 
 	if (n == 0)
 		return 1;
-	p = eb_look(w->eb, w->cu+1, s, n);
-	if (p == -1u)
-		p = eb_look(w->eb, 0, s, n);
+	p = eb_look(w->eb, w->cu, s, n, rev);
 	if (p != -1u) {
 		w->cu = p;
 		eb_setmark(w->eb, SelBeg, p);
@@ -351,7 +350,7 @@ look(W *w, EBuf *eb, unsigned p0)
 		return 0;
 	p1 = 1 + skipb(&eb->b, buf_eol(&eb->b, p0) - 1, -1);
 	eb_yank(eb, p0, p1, &b);
-	e = ex_look(w, b.r, b.nr);
+	e = ex_look(w, b.r, b.nr, 0);
 	free(b.r);
 	if (e) {
 		err(eb, p0, errstr);

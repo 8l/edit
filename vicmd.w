@@ -858,7 +858,7 @@ the annonymous yank buffer.  When a match is found the selection
 is set to the matched text.  If the search hits limbo it wraps around.
 
 @<Subr...@>=
-static int m_n(int ismotion, Cmd c, Motion *m)
+static int m_nN(int ismotion, Cmd c, Motion *m)
 {
 	YBuf b = {0, 0, 0, 0}, *pb = &yannon;
 	int err = 0;
@@ -869,7 +869,7 @@ static int m_n(int ismotion, Cmd c, Motion *m)
 	if (s0 < s1 && s0 != -1u && s1 != -1u)
 		eb_yank(curwin->eb, s0, s1, pb = &b);
 	while (c.count--)
-		err |= ex_look(curwin, pb->r, pb->nr);
+		err |= ex_look(curwin, pb->r, pb->nr, c.chr == 'N');
 	free(b.r);
 	m->end = curwin->cu;
 	if (ismotion)
@@ -878,7 +878,7 @@ static int m_n(int ismotion, Cmd c, Motion *m)
 }
 
 @ @<Predecl...@>=
-static int m_n(int, Cmd, Motion *);
+static int m_nN(int, Cmd, Motion *);
 
 @ Because the search functionality is different, the \./ command is free
 to use.  We reuse it as a motion that designates the whole selection.
@@ -1306,7 +1306,8 @@ union {
 ['%'] = Mtn(0, m_match), ['G'] = Mtn(CZeroCount, m_G),@/
 ['H'] = Mtn(0, m_HML), ['L'] = Mtn(0, m_HML),@/
 ['M'] = Mtn(0, m_HML),@/
-['n'] = Mtn(0, m_n), ['/'] = Mtn(0, m_sel),@/
+['n'] = Mtn(0, m_nN), ['N'] = Mtn(0, m_nN),@/
+['/'] = Mtn(0, m_sel),@/
 ['\''] = Mtn(CHasArg, m_mark), ['`'] = Mtn(CHasArg, m_mark),@/
 ['d'] = Act(CHasMotion, a_d), ['x'] = Act(0, a_d),@/
 ['c'] = Act(CHasMotion, a_c), ['y'] = Act(CHasMotion, a_y),@/
