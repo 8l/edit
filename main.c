@@ -93,6 +93,7 @@ gev(int fd, int flag, void *unused)
 			|| curwin->cu < curwin->l[0])
 				win_show_cursor(curwin, CMid);
 			scrolling = 0;
+			selbeg = -1u;
 			break;
 		case GMouseDown:
 			mousewin = win_which(e.mouse.x, e.mouse.y);
@@ -149,11 +150,6 @@ gev(int fd, int flag, void *unused)
 		default:
 			break;
 		}
-		selbeg = -1u;
-		if (curwin->cu >= curwin->l[curwin->nl])
-			curwin->cu = curwin->l[curwin->nl-1];
-		if (curwin->cu < curwin->l[0])
-			curwin->cu = curwin->l[0];
 		continue;
 	Setcursor:
 		curwin->cu = p0;
