@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <setjmp.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -162,6 +163,7 @@ main(int ac, char *av[])
 {
 	int guifd;
 
+	signal(SIGPIPE, SIG_IGN);
 	g = &gui_x11;
 	guifd = g->init();
 	ev_register(guifd, ERead, gev, 0);
