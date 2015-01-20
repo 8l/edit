@@ -166,6 +166,36 @@ win_which(int x1, int y1)
 	return w;
 }
 
+/* win_edge - Find the edge window in the specified direction.
+ */
+W *
+win_edge(W *w, int dir)
+{
+	W *w1;
+	int i;
+
+	w1 = win_text(w);
+	if (dir == 'j' || dir == 'k') {
+		if (tag.visible && w == tag.owner)
+			return &tag.win;
+		return w1;
+	}
+	for (i=0; w1 != screen[i]; i++)
+		;
+	switch (dir) {
+	case 'h':
+		if (--i < 0)
+		while (screen[i+1])
+			i++;
+		break;
+	case 'l':
+		if (!screen[++i])
+			i = 0;
+		break;
+	}
+	return screen[i];
+}
+
 /* win_move - Resize or move a window to approximately set its
  * upper-left corner to the specified location.
  */

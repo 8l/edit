@@ -1118,8 +1118,27 @@ keyboard driven editor with minimal visual footprint.
 static int a_tag(char buf, Cmd c, Cmd mc)
 {
 	(void)buf; @+(void)c; @+(void)mc;
-	chwin(win_tag_toggle(curwin));
-	return 0;
+	return chwin(win_tag_toggle(curwin)), 0;
+}
+
+@ Switching between windows is done by clicks.  One can also use
+the keyboard command \.{\^L} followed by any of the basic line
+motions \.h, \.j, \.k, and \.l to jump directly to a neighbor
+window.
+
+@<Subr...@>=
+static int a_swtch(char buf, Cmd c, Cmd mc)
+{
+	(void)buf; @+(void)mc;
+	switch (c.arg) {
+	default:
+		return 1;
+	case 'h':
+	case 'j':
+	case 'k':
+	case 'l':
+		return chwin(win_edge(curwin, c.arg)), 0;
+	}
 }
 
 @ Still from Acme, the editor allows the user to run arbitrary
@@ -1281,7 +1300,7 @@ typedef int @[@] cmd_t(char, Cmd, Cmd);
 array below.
 
 @<Predecl...@>=
-static cmd_t a_d, a_c, a_y, a_pP, a_m, a_ins, a_run, a_scroll, a_tag, a_write, a_exit;
+static cmd_t a_d, a_c, a_y, a_pP, a_m, a_ins, a_run, a_scroll, a_swtch, a_tag, a_write, a_exit;
 
 @ @<Other key fields@>=
 union {
@@ -1320,6 +1339,7 @@ union {
 [CTRL('U')] = Act(CZeroCount, a_scroll),@/
 [CTRL('E')] = Act(0, a_scroll), [CTRL('Y')] = Act(0, a_scroll),@/
 [CTRL('T')] = Act(0, a_tag), [CTRL('I')] = Act(0, a_run),@/
+[CTRL('L')] = Act(CHasArg, a_swtch),@/
 [CTRL('W')] = Act(0, a_write), [CTRL('Q')] = Act(0, a_exit),
 
 @** Index.

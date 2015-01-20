@@ -36,6 +36,7 @@ W *win_new(void);
 W *win_kill(W *);
 unsigned win_at(W *w, int x, int y);
 W *win_which(int x, int y);
+W *win_edge(W *, int dir);
 void win_move(W *, int x, int y);
 void win_resize_frame(int w, int h);
 void win_redraw_frame(W *focus, int insert);
