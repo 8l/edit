@@ -178,6 +178,7 @@ popalarm()
 	i = 1;
 	ah[i] = ah[na--];
 	while ((j = 2 * i) <= na) {
+		if (j+1 <= na)
 		if (tgt(ah[j].t, ah[j+1].t))
 			j++;
 		if (!tgt(ah[i].t, ah[j].t))
