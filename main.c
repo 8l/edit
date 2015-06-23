@@ -88,6 +88,7 @@ gev(int fd, int flag, void *unused)
 			break;
 		case GKey:
 			cmd_parse(e.key);
+		Update:
 			win_update(curwin);
 			if (!scrolling)
 			if (curwin->cu >= curwin->l[curwin->nl]
@@ -122,10 +123,12 @@ gev(int fd, int flag, void *unused)
 					eb_setmark(curwin->eb, SelBeg, p0);
 					eb_setmark(curwin->eb, SelEnd, p1);
 				}
-				goto Setcursor;
+				curwin->cu = p0;
+				curwin->dirty = 1;
 			} else if (e.mouse.button == GBMiddle) {
 				p0 = win_at(mousewin, e.mouse.x, e.mouse.y);
 				ex_run(mousewin, p0);
+				goto Update;
 			} else if (e.mouse.button == GBWheelUp) {
 				win_scroll(mousewin, -4);
 			} else if (e.mouse.button == GBWheelDown) {
@@ -147,14 +150,10 @@ gev(int fd, int flag, void *unused)
 				eb_setmark(curwin->eb, SelBeg, selbeg);
 				eb_setmark(curwin->eb, SelEnd, p0);
 			}
-			goto Setcursor;
-		default:
+			curwin->cu = p0;
+			curwin->dirty = 1;
 			break;
 		}
-		continue;
-	Setcursor:
-		curwin->cu = p0;
-		curwin->dirty = 1;
 	}
 }
 
