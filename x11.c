@@ -12,7 +12,7 @@
 
 void die(char *);
 
-#define FONTNAME "Source Code Pro:pixelsize=12"
+#define FONTNAME "Monaco:pixelsize=10"
 
 enum {
 	HMargin = 16,
