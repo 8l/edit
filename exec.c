@@ -237,6 +237,7 @@ err(EBuf *eb, unsigned p0, char *e)
 	while (*e)
 		eb_ins(eb, p0++, *e++);
 	eb_ins(eb, p0, '\n');
+	eb_commit(eb);
 }
 
 static int
