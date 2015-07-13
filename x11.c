@@ -33,6 +33,8 @@ static Window win;
 static Pixmap pbuf;
 XftDraw *xft;
 static int w, h;
+static XIC xic;
+static XIM xim;
 
 static int
 init()
@@ -60,7 +62,7 @@ init()
 	swa.bit_gravity = NorthWestGravity;
 	XChangeWindowAttributes(d, win, CWBackingStore|CWBitGravity, &swa);
 	XStoreName(d, win, "ED");
-	XSelectInput(d, win, StructureNotifyMask|ButtonPressMask|ButtonReleaseMask|Button1MotionMask|KeyPressMask|ExposureMask);
+	XSelectInput(d, win, StructureNotifyMask|ButtonPressMask|ButtonReleaseMask|Button1MotionMask|KeyPressMask|ExposureMask|FocusChangeMask);
 
 	/* simulate an initial resize and map the window */
 	ce.type = ConfigureNotify;
@@ -68,6 +70,11 @@ init()
 	ce.height = Height;
 	XSendEvent(d, win, False, StructureNotifyMask, (XEvent *)&ce);
 	XMapWindow(d, win);
+
+	/* input methods */
+	xim = XOpenIM(d, 0, 0, 0);
+	if (xim)
+		xic = XCreateIC(xim, XNInputStyle, XIMPreeditNothing|XIMStatusNothing, XNClientWindow, win, XNFocusWindow, win, NULL);
 
 	/* allocate font */
 	font = XftFontOpenName(d, screen, FONTNAME);
@@ -217,7 +224,19 @@ nextevent(GEvent *gev)
 	while (XPending(d)) {
 
 		XNextEvent(d, &e);
+		if (XFilterEvent(&e, None))
+			continue;
 		switch (e.type) {
+
+		case FocusIn:
+			if (xic)
+				XSetICFocus(xic);
+			break;
+
+		case FocusOut:
+			if (xic)
+				XUnsetICFocus(xic);
+			break;
 
 		case Expose:
 			sync();
@@ -282,9 +301,13 @@ nextevent(GEvent *gev)
 			int len;
 			char buf[8];
 			KeySym key;
+			Status status;
 
 			gev->type = GKey;
-			len = XLookupString(&e.xkey, buf, 8, &key, 0);
+			if (xic)
+				len = Xutf8LookupString(xic, &e.xkey, buf, 8, &key, &status);
+			else
+				len = XLookupString(&e.xkey, buf, 8, &key, 0);
 			switch (key) {
 			case XK_F1:
 			case XK_F2:
@@ -326,7 +349,7 @@ nextevent(GEvent *gev)
 					continue;
 				if (buf[0] == '\r')
 					buf[0] = '\n';
-				gev->key = buf[0];
+				utf8_decode_rune(&gev->key, (unsigned char *)buf, 8);
 				break;
 			}
 			break;
