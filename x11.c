@@ -231,12 +231,12 @@ nextevent(GEvent *gev)
 		case FocusIn:
 			if (xic)
 				XSetICFocus(xic);
-			break;
+			continue;
 
 		case FocusOut:
 			if (xic)
 				XUnsetICFocus(xic);
-			break;
+			continue;
 
 		case Expose:
 			sync();
